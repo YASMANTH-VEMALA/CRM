@@ -3,6 +3,7 @@ import { getScope } from "./scope";
 import { REPORT_DEFINITIONS } from "@/lib/reports/definitions";
 import { runReport, ReportPermissionError } from "@/lib/reports/run";
 import type { ReportDefinition, ReportFilters, ReportResult } from "@/lib/reports/types";
+import { log } from "@/lib/logger";
 
 export type ReportOption = Pick<
   ReportDefinition,
@@ -117,7 +118,7 @@ export async function getReportsData(
           ? caught.message
           : "This report could not be generated. Try narrowing the filters.";
       if (!(caught instanceof ReportPermissionError)) {
-        console.error("[reports] run failed", caught);
+        log.error("reports.run_failed", caught);
       }
     }
   }

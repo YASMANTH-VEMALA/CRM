@@ -172,6 +172,87 @@ export function validateProductRows(
   return { valid, errors, duplicates, totalRows: sheet.rows.length, missingColumns: [] };
 }
 
+/**
+ * Re-checks rows that have made a round trip through the browser.
+ *
+ * `previewProductImport` validates the uploaded sheet and hands the accepted
+ * rows back to the client, which posts them again on confirmation — so at
+ * commit time they are client-controlled input, not trusted output. This runs
+ * the same numeric and pricing rules over them again. It deliberately does not
+ * re-check duplicates: those need a database read and the unique indexes are
+ * the authoritative guard there.
+ */
+export function revalidateImportRows(rows: ProductImportRow[]): {
+  valid: ProductImportRow[];
+  invalid: RowError[];
+} {
+  const valid: ProductImportRow[] = [];
+  const invalid: RowError[] = [];
+
+  for (const row of rows) {
+    const at = Number.isFinite(row?.rowNumber) ? row.rowNumber : 0;
+    const fail = (error: string) => invalid.push({ row: at, error });
+
+    if (!row || typeof row.name !== "string" || !row.name.trim()) {
+      fail("Product name is required.");
+      continue;
+    }
+    if (!Number.isFinite(row.buyPrice) || row.buyPrice < 0) {
+      fail("Purchase cost must be a number and cannot be negative.");
+      continue;
+    }
+    if (row.pricingMethod !== "fixed" && row.pricingMethod !== "cost_plus_margin") {
+      fail("Pricing method must be FIXED or COST_PLUS_MARGIN.");
+      continue;
+    }
+    if (!Number.isFinite(row.marginPercent) || row.marginPercent < 0) {
+      fail("Margin percent must be a non-negative number.");
+      continue;
+    }
+    if (row.pricingMethod === "cost_plus_margin" && row.marginPercent <= 0) {
+      fail("Margin percent is required when pricing method is COST_PLUS_MARGIN.");
+      continue;
+    }
+    if (
+      !Number.isFinite(row.maxDiscountPercent) ||
+      row.maxDiscountPercent < 0 ||
+      row.maxDiscountPercent > 100
+    ) {
+      fail("Max discount percent must be between 0 and 100.");
+      continue;
+    }
+    if (!Number.isFinite(row.reorderLevel) || row.reorderLevel < 0) {
+      fail("Minimum stock cannot be negative.");
+      continue;
+    }
+    if (!Number.isFinite(row.restockTarget) || row.restockTarget < 0) {
+      fail("Restock target cannot be negative.");
+      continue;
+    }
+    if (row.restockTarget > 0 && row.restockTarget < row.reorderLevel) {
+      fail("Restock target must be at least the minimum stock quantity.");
+      continue;
+    }
+
+    // Recompute rather than trust: a tampered sellPrice is the whole point of
+    // this pass.
+    const sellPrice = calculateSellPrice(
+      row.pricingMethod,
+      row.buyPrice,
+      row.marginPercent,
+      row.pricingMethod === "fixed" ? row.sellPrice : 0
+    );
+    if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
+      fail("The calculated selling price must be greater than zero.");
+      continue;
+    }
+
+    valid.push({ ...row, name: row.name.trim(), sellPrice });
+  }
+
+  return { valid, invalid };
+}
+
 export const DUPLICATE_LABELS: Record<DuplicateKind, string> = {
   existing_product: "Already an active product",
   duplicate_in_file: "Repeated in this file",

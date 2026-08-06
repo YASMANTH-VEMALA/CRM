@@ -37,6 +37,8 @@ export function SalesView({ data }: { data: POSData }) {
   const [cartDiscount, setCartDiscount] = useState(0);
   const [message, setMessage] = useState<{ ok: boolean; message: string } | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  /** Idempotency key for the cart currently being rung up; cleared on success. */
+  const [requestKey, setRequestKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -152,8 +154,15 @@ export function SalesView({ data }: { data: POSData }) {
     const snapshotTotal = total;
     const snapshotPayment = paymentMethod;
 
+    // Minted once per cart and reused on every retry, so a double click or a
+    // resubmit after a flaky response returns the original sale rather than
+    // ringing the customer up twice.
+    const key = requestKey ?? crypto.randomUUID();
+    if (!requestKey) setRequestKey(key);
+
     startTransition(async () => {
       const result = await completeSale({
+        requestKey: key,
         items: snapshot.map((line) => ({
           productId: line.productId,
           batchId: line.batchId,
@@ -187,7 +196,13 @@ export function SalesView({ data }: { data: POSData }) {
       setCartDiscount(0);
       setCustomerId("");
       setSearch("");
-      setMessage({ ok: true, message: `Sale ${result.invoiceNumber} completed.` });
+      setRequestKey(null);
+      setMessage({
+        ok: true,
+        message: result.duplicate
+          ? `This cart was already rung up as ${result.invoiceNumber}. No second sale was created.`
+          : `Sale ${result.invoiceNumber} completed.`,
+      });
       searchRef.current?.focus();
     });
   }

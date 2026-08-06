@@ -5,6 +5,7 @@ import { buildWorkbook, excelResponseHeaders, type SheetColumn } from "@/lib/exc
 import { getReportDefinition } from "@/lib/reports/definitions";
 import { runReport, ReportPermissionError } from "@/lib/reports/run";
 import type { ReportFilters, ReportFilterKey } from "@/lib/reports/types";
+import { log } from "@/lib/logger";
 
 const FILTER_KEYS: ReportFilterKey[] = [
   "entity",
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof ReportPermissionError) {
       return new Response(error.message, { status: 403 });
     }
-    console.error("[reports] export failed", error);
+    log.error("reports.export_failed", error, { reportId, employeeId: employee.id });
     return new Response("Could not generate the export.", { status: 500 });
   }
 }

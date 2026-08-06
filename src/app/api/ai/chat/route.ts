@@ -1,5 +1,6 @@
 import { getCurrentEmployee } from "@/lib/dal";
 import { streamAnswer, type ChatMessage } from "@/lib/ai/generate";
+import { log } from "@/lib/logger";
 
 export async function POST(request: Request) {
   const employee = await getCurrentEmployee();
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
     });
   } catch (err) {
-    console.error("[ai/chat]", err);
+    log.error("ai.chat_failed", err);
     return new Response("The assistant is unavailable right now.", { status: 502 });
   }
 }

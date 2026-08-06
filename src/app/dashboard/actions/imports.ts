@@ -5,7 +5,13 @@ import { permissionError, requireUser } from "@/lib/dal";
 import { ENTITY_REQUIRED_ERROR, getActiveEntityId } from "@/lib/entity";
 import { createClient } from "@/lib/supabase/server";
 import { hashFile, parseSpreadsheet } from "@/lib/excel";
-import { DUPLICATE_LABELS, validateProductRows, type ProductImportRow, type RowError } from "@/lib/imports/products";
+import {
+  DUPLICATE_LABELS,
+  revalidateImportRows,
+  validateProductRows,
+  type ProductImportRow,
+  type RowError,
+} from "@/lib/imports/products";
 import type { ActionResult } from "@/lib/types";
 
 export type ImportPreviewState =
@@ -172,6 +178,24 @@ export async function commitProductImport(
   if (rows.length === 0) {
     return { status: "error", error: "There are no valid rows to import." };
   }
+  if (rows.length > MAX_ROWS) {
+    return { status: "error", error: `The import exceeds the ${MAX_ROWS}-row limit.` };
+  }
+
+  // The preview step ran in a previous request and returned this payload to the
+  // browser, so by the time it comes back it is client-controlled input: the
+  // rows, the counts and the file hash can all have been edited. Re-validate
+  // every row here, otherwise the import rules are advisory and the duplicate
+  // -file guard can be defeated by changing the hash.
+  const revalidated = revalidateImportRows(rows);
+  if (revalidated.invalid.length > 0) {
+    const first = revalidated.invalid[0];
+    return {
+      status: "error",
+      error: `Row ${first.row} failed validation on submit (${first.error}). Upload the file again.`,
+    };
+  }
+  rows = revalidated.valid;
 
   const supabase = await createClient();
 

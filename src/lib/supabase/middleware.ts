@@ -36,10 +36,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  if (user) {
+    // A disabled employee keeps a valid JWT until it expires. RLS already
+    // denies them every row, but without this check the dashboard bounced them
+    // to /login and the rule below bounced them straight back — an infinite
+    // redirect loop. End the session instead, so they land on /login once with
+    // a clear message.
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("status")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (employee && employee.status !== "active") {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "?disabled=1";
+      return NextResponse.redirect(url);
+    }
+
+    if (isAuthRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

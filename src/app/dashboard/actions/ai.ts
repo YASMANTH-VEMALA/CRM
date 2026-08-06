@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/dal";
 import { semanticSearch, type RetrievedChunk } from "@/lib/ai/retrieve";
 import { generateForRecord } from "@/lib/ai/generate";
 import type { SourceTable } from "@/lib/ai/embed";
+import { log } from "@/lib/logger";
 
 export type AiSearchState = { ok: true; query: string; results: RetrievedChunk[] } | { ok: false; error: string } | null;
 
@@ -16,7 +17,7 @@ export async function aiSearch(_prevState: AiSearchState, formData: FormData): P
     const results = await semanticSearch(query, { matchCount: 10 });
     return { ok: true, query, results };
   } catch (err) {
-    console.error("[ai/search]", err);
+    log.error("ai.search_failed", err);
     return { ok: false, error: "Search is unavailable right now." };
   }
 }
@@ -34,7 +35,7 @@ export async function summarizeRecord(_prevState: SummarizeState, formData: Form
     const summary = await generateForRecord(`Summarize this ${singular} record for a pharmacy staff member.`, sourceTable, sourceId, 200);
     return { ok: true, summary };
   } catch (err) {
-    console.error("[ai/summarize]", err);
+    log.error("ai.summarize_failed", err);
     return { ok: false, error: "Could not generate a summary right now." };
   }
 }
@@ -51,7 +52,7 @@ export async function draftMessage(_prevState: DraftState, formData: FormData): 
     const draft = await generateForRecord(`Draft a short, friendly message to this customer. Intent: ${intent}`, "customers", customerId, 250);
     return { ok: true, draft };
   } catch (err) {
-    console.error("[ai/draft]", err);
+    log.error("ai.draft_failed", err);
     return { ok: false, error: "Could not generate a draft right now." };
   }
 }

@@ -18,6 +18,12 @@ export type CompleteSalePayload = {
   customerId: string | null;
   paymentMethod: string;
   discount: number;
+  /**
+   * Idempotency key minted by the POS when the cart is created. A retry — a
+   * double click, a flaky network, a resubmitted form — carries the same key
+   * and returns the original sale instead of ringing it up twice.
+   */
+  requestKey?: string;
 };
 
 function revalidateSalesPaths() {
@@ -36,7 +42,7 @@ function rpcError(message: string | undefined, fallback: string): string {
 
 export async function completeSale(
   payload: CompleteSalePayload
-): Promise<ActionResult & { invoiceNumber?: string }> {
+): Promise<ActionResult & { invoiceNumber?: string; duplicate?: boolean }> {
   const employee = await requireUser();
   const denied = permissionError(employee, "create_sales");
   if (denied) return denied;
@@ -54,6 +60,7 @@ export async function completeSale(
       customer_id: payload.customerId,
       payment_method: payload.paymentMethod,
       discount: payload.discount,
+      request_key: payload.requestKey ?? null,
       items: payload.items.map((item) => ({
         product_id: item.productId,
         batch_id: item.batchId,
@@ -68,8 +75,8 @@ export async function completeSale(
   }
 
   revalidateSalesPaths();
-  const result = data as { invoice_number?: string } | null;
-  return { ok: true, invoiceNumber: result?.invoice_number };
+  const result = data as { invoice_number?: string; duplicate?: boolean } | null;
+  return { ok: true, invoiceNumber: result?.invoice_number, duplicate: result?.duplicate };
 }
 
 export async function reverseSale(saleId: string, reason?: string): Promise<ActionResult> {

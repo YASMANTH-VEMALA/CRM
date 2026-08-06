@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { EMBEDDING_MODEL, getOpenAI } from "./openai";
 import type { Customer, Product, Supplier } from "@/lib/types";
+import { log } from "@/lib/logger";
 
 export type SourceTable = "products" | "customers" | "suppliers";
 
@@ -96,6 +97,6 @@ export async function upsertEmbeddingBestEffort(
   try {
     await upsertEmbedding(sourceTable, sourceId, content, metadata, branchId);
   } catch (err) {
-    console.error("[ai] embedding upsert failed", sourceTable, sourceId, err);
+    log.error("ai.embedding_upsert_failed", err, { sourceTable, sourceId });
   }
 }

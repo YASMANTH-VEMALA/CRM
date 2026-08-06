@@ -5,8 +5,13 @@ import { useActionState, useState } from "react";
 import { signIn } from "./actions";
 import "./login.css";
 
-const DEMO_USERNAME = "admin@marspharmacy.com";
-const DEMO_PASSWORD = "Demo@12345";
+// The demo credentials card used to hardcode a working master-admin password
+// and print it on the page, which made every visitor a master admin. It is now
+// opt-in and empty unless both variables are set — never set these in
+// production.
+const DEMO_USERNAME = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
+const SHOW_DEMO_CREDENTIALS = Boolean(DEMO_USERNAME && DEMO_PASSWORD);
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signIn, undefined);
@@ -15,6 +20,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [helpVisible, setHelpVisible] = useState(false);
+  // Read lazily rather than with useSearchParams, which would opt this page out
+  // of static prerendering for the sake of one query flag. The initialiser runs
+  // once on the client; on the server it is simply false.
+  const [wasDisabled] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("disabled") === "1"
+  );
 
   function useDemoCredentials() {
     setUsername(DEMO_USERNAME);
@@ -55,15 +68,24 @@ export default function LoginPage() {
           <div className="login-heading">
             <p>Welcome back</p>
             <h2>Sign in to manage your pharmacy</h2>
-            <span>Use the demo credentials below to enter the application.</span>
+            <span>Enter the credentials issued by your administrator.</span>
           </div>
 
-          <button className="credentials-card" type="button" onClick={useDemoCredentials}>
-            <span>Demo credentials</span>
-            <div><small>Username</small><strong>{DEMO_USERNAME}</strong></div>
-            <div><small>Password</small><strong>{DEMO_PASSWORD}</strong></div>
-            <em>Click to fill</em>
-          </button>
+          {wasDisabled && (
+            <p className="login-error" role="alert">
+              This account has been disabled and its session was ended. Contact your
+              administrator.
+            </p>
+          )}
+
+          {SHOW_DEMO_CREDENTIALS && (
+            <button className="credentials-card" type="button" onClick={useDemoCredentials}>
+              <span>Demo credentials</span>
+              <div><small>Username</small><strong>{DEMO_USERNAME}</strong></div>
+              <div><small>Password</small><strong>{DEMO_PASSWORD}</strong></div>
+              <em>Click to fill</em>
+            </button>
+          )}
 
           <form className="login-form" action={formAction}>
             <label>
