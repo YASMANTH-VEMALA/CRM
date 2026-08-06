@@ -33,7 +33,6 @@ type ProductRecordRow = {
   form: string | null;
   unit: string | null;
   status: Product["status"];
-  buy_price: number;
   sell_price: number;
   reorder_level: number;
   categories: { name: string } | null;
@@ -82,7 +81,7 @@ export async function hydrateExactFacts(chunks: RetrievedChunk[]): Promise<Map<s
   if (productIds.length) {
     const { data } = await supabase
       .from("products")
-      .select("id, sell_price, buy_price, status, reorder_level, product_batches(quantity_available)")
+      .select("id, sell_price, status, reorder_level, product_batches(quantity_available)")
       .in("id", productIds);
     for (const p of data ?? []) {
       const available = (p.product_batches ?? []).reduce(
@@ -91,7 +90,6 @@ export async function hydrateExactFacts(chunks: RetrievedChunk[]): Promise<Map<s
       );
       facts.set(`products:${p.id}`, {
         sell_price: p.sell_price,
-        buy_price: p.buy_price,
         status: p.status,
         reorder_level: p.reorder_level,
         available_stock: available,
@@ -132,7 +130,7 @@ export async function fetchRecordContext(
     const { data } = await supabase
       .from("products")
       .select(
-        "id, sku, name, generic_name, strength, form, unit, status, buy_price, sell_price, reorder_level, categories(name), suppliers(name), product_batches(quantity_available)"
+        "id, sku, name, generic_name, strength, form, unit, status, sell_price, reorder_level, categories(name), suppliers(name), product_batches(quantity_available)"
       )
       .eq("id", sourceId)
       .maybeSingle();
@@ -143,7 +141,6 @@ export async function fetchRecordContext(
       content: buildProductDocument(product, product.categories?.name, product.suppliers?.name),
       facts: {
         sell_price: product.sell_price,
-        buy_price: product.buy_price,
         status: product.status,
         reorder_level: product.reorder_level,
         available_stock: available,

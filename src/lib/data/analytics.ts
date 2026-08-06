@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { productCostMap } from "./costs";
 import { formatTZS } from "@/app/dashboard/views/shared";
 
 export type TrendPoint = { label: string; salesPct: number; profitPct: number };
@@ -32,10 +33,15 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
   const [{ data: sales }, { data: expenses }] = await Promise.all([
     supabase
       .from("sales")
-      .select("total, payment_method, status, sold_at, sale_items(quantity, line_total, products(name, buy_price))")
+      .select("total, payment_method, status, sold_at, sale_items(quantity, line_total, product_id, products(name))")
       .order("sold_at", { ascending: true }),
     supabase.from("expenses").select("amount"),
   ]);
+
+  // PostgREST cannot embed the cost view, so costs are merged by product_id.
+  // Empty for a user without view_purchase_cost, which zeroes out cost and
+  // profit rather than leaking them.
+  const productCosts = await productCostMap(supabase, null);
 
   const allSales = (sales ?? []).filter((s) => s.status !== "reversed");
   const transactionCount = allSales.length;
@@ -54,10 +60,10 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     paymentAgg.set(s.payment_method, (paymentAgg.get(s.payment_method) ?? 0) + Number(s.total));
 
     (s.sale_items ?? []).forEach((item) => {
-      const product = item.products as unknown as { name: string; buy_price: number } | null;
+      const product = item.products as unknown as { name: string } | null;
       const quantity = Number(item.quantity);
       const name = product?.name ?? "Unknown product";
-      const cost = (product?.buy_price ?? 0) * quantity;
+      const cost = (productCosts.get(item.product_id) ?? 0) * quantity;
       totalCost += cost;
       dayEntry.cost += cost;
 

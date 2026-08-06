@@ -1,13 +1,14 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/dal";
+import { productCostMap } from "./costs";
 import { formatDate, formatTZS } from "@/app/dashboard/views/shared";
 
 export type PurchaseOrdersData = {
   stats: Array<[string, string, string]>;
   rows: string[][];
   suppliers: { id: string; name: string }[];
-  products: { id: string; sku: string; name: string; buy_price: number }[];
+  products: { id: string; sku: string; name: string; buyPrice: number | null }[];
   employee: { id: string; full_name: string };
   pendingApprovals: Array<{ id: string; po_number: string; supplier: string; total: string }>;
 };
@@ -29,8 +30,11 @@ export async function getPurchaseOrdersData(): Promise<PurchaseOrdersData> {
       .select("*, suppliers(name), employees(full_name), purchase_order_items(quantity)")
       .order("created_at", { ascending: false }),
     supabase.from("suppliers").select("id, name").eq("is_active", true).order("name"),
-    supabase.from("products").select("id, sku, name, buy_price").eq("status", "active").order("name"),
+    supabase.from("products").select("id, sku, name").eq("status", "active").order("name"),
   ]);
+
+  // Cost pre-fill for PO lines; empty without view_purchase_cost.
+  const productCosts = await productCostMap(supabase, null);
 
   const allOrders = orders ?? [];
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -72,7 +76,7 @@ export async function getPurchaseOrdersData(): Promise<PurchaseOrdersData> {
     stats,
     rows,
     suppliers: suppliers ?? [],
-    products: products ?? [],
+    products: (products ?? []).map((p) => ({ ...p, buyPrice: productCosts.get(p.id) ?? null })),
     employee: { id: employee.id, full_name: employee.full_name },
     pendingApprovals,
   };

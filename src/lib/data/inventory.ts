@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { BATCH_COLUMNS, batchCostMap, productCostMap } from "./costs";
 import { reorderQuantity } from "@/lib/pricing";
 
 function one<T>(value: unknown): T | null {
@@ -50,21 +51,24 @@ export async function getInventoryData(): Promise<InventoryData> {
   const scope = await getScope();
   const { supabase, entityId } = scope;
 
+  // Explicit column list: unit_cost is not readable by `authenticated` and a
+  // `*` select would be rejected outright. Cost comes from batch_costs.
   let batchQuery = supabase
     .from("product_batches")
-    .select("*, products(name, sku, reorder_level), suppliers(name), branches(name)")
+    .select(`${BATCH_COLUMNS}, products(name, sku, reorder_level), suppliers(name), branches(name)`)
     .order("expiry_date", { ascending: true, nullsFirst: false })
     .limit(2000);
   if (entityId) batchQuery = batchQuery.eq("branch_id", entityId);
 
-  const [{ data: batches }, { data: entities }] = await Promise.all([
+  const [{ data: batches }, { data: entities }, costs] = await Promise.all([
     batchQuery,
     supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
+    batchCostMap(supabase, entityId),
   ]);
 
   const rows: BatchRow[] = (batches ?? []).map((batch) => {
     const product = one<{ name: string; sku: string; reorder_level: number }>(batch.products);
-    const unitCost = Number(batch.unit_cost);
+    const unitCost = costs.get(batch.id) ?? null;
     const available = batch.quantity_available;
 
     return {
@@ -77,8 +81,8 @@ export async function getInventoryData(): Promise<InventoryData> {
       entityName: one<{ name: string }>(batch.branches)?.name ?? null,
       quantityReceived: batch.quantity_received,
       quantityAvailable: available,
-      unitCost: scope.canViewCost ? unitCost : null,
-      stockValue: scope.canViewCost ? Math.max(0, available) * unitCost : null,
+      unitCost,
+      stockValue: unitCost === null ? null : Math.max(0, available) * unitCost,
       expiryDate: batch.expiry_date,
       daysToExpiry: daysBetween(batch.expiry_date),
       storageLocation: batch.storage_location,
@@ -255,7 +259,7 @@ export async function getLowStockData(): Promise<LowStockData> {
 
   let productQuery = supabase
     .from("products")
-    .select("id, sku, name, reorder_level, restock_target, buy_price, suppliers(name), branches(name)")
+    .select("id, sku, name, reorder_level, restock_target, suppliers(name), branches(name)")
     .eq("status", "active")
     .order("name");
   if (entityId) productQuery = productQuery.eq("branch_id", entityId);
@@ -266,7 +270,11 @@ export async function getLowStockData(): Promise<LowStockData> {
     .eq("status", "active");
   if (entityId) batchQuery = batchQuery.eq("branch_id", entityId);
 
-  const [{ data: products }, { data: batches }] = await Promise.all([productQuery, batchQuery]);
+  const [{ data: products }, { data: batches }, costs] = await Promise.all([
+    productQuery,
+    batchQuery,
+    productCostMap(supabase, entityId),
+  ]);
 
   const availableByProduct = new Map<string, number>();
   for (const batch of batches ?? []) {
@@ -288,7 +296,7 @@ export async function getLowStockData(): Promise<LowStockData> {
       minimum: product.reorder_level,
       restockTarget: product.restock_target,
       reorderQuantity: reorder,
-      estimatedCost: scope.canViewCost ? reorder * Number(product.buy_price) : null,
+      estimatedCost: costs.has(product.id) ? reorder * costs.get(product.id)! : null,
       entityName: one<{ name: string }>(product.branches)?.name ?? null,
     };
   });

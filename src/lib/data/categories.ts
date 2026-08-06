@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { batchCostMap } from "./costs";
 import { formatTZS } from "@/app/dashboard/views/shared";
 
 export type CategoriesData = {
@@ -14,7 +15,7 @@ export async function getCategoriesData(): Promise<CategoriesData> {
   let productQuery = supabase.from("products").select("id, category_id");
   if (entityId) productQuery = productQuery.eq("branch_id", entityId);
 
-  let batchQuery = supabase.from("product_batches").select("product_id, quantity_available, unit_cost");
+  let batchQuery = supabase.from("product_batches").select("id, product_id, quantity_available");
   if (entityId) batchQuery = batchQuery.eq("branch_id", entityId);
 
   // The category catalogue itself is shared across the network — never scoped.
@@ -37,15 +38,20 @@ export async function getCategoriesData(): Promise<CategoriesData> {
     productCountByCategory.set(p.category_id, (productCountByCategory.get(p.category_id) ?? 0) + 1);
   });
 
+  // batch_costs returns nothing without view_purchase_cost, so this map is
+  // empty for a sales user and no category shows a stock value.
+  const costs = await batchCostMap(supabase, entityId);
   const stockValueByCategory = new Map<string, number>();
-  if (scope.canViewCost) {
-    allBatches.forEach((b) => {
-      const categoryId = categoryByProduct.get(b.product_id);
-      if (!categoryId) return;
-      const value = b.quantity_available * b.unit_cost;
-      stockValueByCategory.set(categoryId, (stockValueByCategory.get(categoryId) ?? 0) + value);
-    });
-  }
+  allBatches.forEach((b) => {
+    const categoryId = categoryByProduct.get(b.product_id);
+    if (!categoryId) return;
+    const unitCost = costs.get(b.id);
+    if (unitCost === undefined) return;
+    stockValueByCategory.set(
+      categoryId,
+      (stockValueByCategory.get(categoryId) ?? 0) + b.quantity_available * unitCost
+    );
+  });
 
   const medicine = allCategories.filter((c) => c.type === "medicine");
   const supplies = allCategories.filter((c) => c.type === "supplies");

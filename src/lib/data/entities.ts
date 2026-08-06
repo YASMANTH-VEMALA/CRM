@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { batchCostMapAllEntities } from "./costs";
 
 export type EntityRow = {
   id: string;
@@ -43,7 +44,7 @@ export async function getEntitiesData(): Promise<EntitiesData> {
       supabase.from("branches").select("*").order("name"),
       supabase.from("employees").select("id, branch_id, status"),
       supabase.from("products").select("id, branch_id, reorder_level").eq("status", "active"),
-      supabase.from("product_batches").select("product_id, branch_id, quantity_available, unit_cost").eq("status", "active"),
+      supabase.from("product_batches").select("id, product_id, branch_id, quantity_available").eq("status", "active"),
       supabase
         .from("sales")
         .select("branch_id, total")
@@ -57,12 +58,18 @@ export async function getEntitiesData(): Promise<EntitiesData> {
     employeeCount.set(employee.branch_id, (employeeCount.get(employee.branch_id) ?? 0) + 1);
   }
 
+  // This is the consolidated multi-entity view, so cost is fetched across every
+  // entity. batch_costs yields nothing without view_purchase_cost.
+  const costs = await batchCostMapAllEntities(supabase);
   const availableByProduct = new Map<string, number>();
   const stockValue = new Map<string, number>();
   for (const batch of batches ?? []) {
     const available = Math.max(0, batch.quantity_available);
     availableByProduct.set(batch.product_id, (availableByProduct.get(batch.product_id) ?? 0) + available);
-    stockValue.set(batch.branch_id, (stockValue.get(batch.branch_id) ?? 0) + available * Number(batch.unit_cost));
+    const unitCost = costs.get(batch.id);
+    if (unitCost !== undefined) {
+      stockValue.set(batch.branch_id, (stockValue.get(batch.branch_id) ?? 0) + available * unitCost);
+    }
   }
 
   const productCount = new Map<string, number>();

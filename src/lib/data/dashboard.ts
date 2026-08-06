@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { batchCostMap, batchCostMapAllEntities, productCostMap } from "./costs";
 import { reorderQuantity } from "@/lib/pricing";
 
 function one<T>(value: unknown): T | null {
@@ -98,7 +99,7 @@ async function entityDashboard(): Promise<EntityDashboard> {
 
   let batchQuery = supabase
     .from("product_batches")
-    .select("product_id, quantity_available, unit_cost")
+    .select("id, product_id, quantity_available")
     .eq("status", "active");
   if (entityId) batchQuery = batchQuery.eq("branch_id", anyEntity);
 
@@ -143,9 +144,17 @@ async function entityDashboard(): Promise<EntityDashboard> {
     supabase
       .from("sale_items")
       .select(
-        "quantity, line_total, product_id, products(name, sku, buy_price), sales!inner(id, branch_id, status, sold_at, employees!sales_cashier_id_fkey(full_name))"
+        "quantity, line_total, product_id, products(name, sku), sales!inner(id, branch_id, status, sold_at, employees!sales_cashier_id_fkey(full_name))"
       )
       .limit(3000),
+  ]);
+
+  // PostgREST cannot embed a view (views carry no foreign keys), so cost is
+  // fetched separately and merged by id. Both maps are empty for a user
+  // without view_purchase_cost.
+  const [batchCosts, productCosts] = await Promise.all([
+    batchCostMap(supabase, entityId ? anyEntity : null),
+    productCostMap(supabase, entityId ? anyEntity : null),
   ]);
 
   const availableByProduct = new Map<string, number>();
@@ -155,7 +164,7 @@ async function entityDashboard(): Promise<EntityDashboard> {
     const available = Math.max(0, batch.quantity_available);
     availableByProduct.set(batch.product_id, (availableByProduct.get(batch.product_id) ?? 0) + available);
     stockUnits += available;
-    stockValue += available * Number(batch.unit_cost);
+    stockValue += available * (batchCosts.get(batch.id) ?? 0);
   }
 
   const lowStock: EntityDashboard["lowStock"] = [];
@@ -199,7 +208,7 @@ async function entityDashboard(): Promise<EntityDashboard> {
   let monthCost = 0;
 
   for (const item of scopedItems) {
-    const product = one<{ name: string; sku: string; buy_price: number }>(item.products);
+    const product = one<{ name: string; sku: string }>(item.products);
     const bucket = productTotals.get(item.product_id) ?? {
       name: product?.name ?? "—",
       sku: product?.sku ?? "—",
@@ -211,7 +220,7 @@ async function entityDashboard(): Promise<EntityDashboard> {
     productTotals.set(item.product_id, bucket);
 
     monthRevenue += Number(item.line_total);
-    monthCost += Number(product?.buy_price ?? 0) * item.quantity;
+    monthCost += (productCosts.get(item.product_id) ?? 0) * item.quantity;
 
     const sale = one<{ id: string; employees: unknown }>(item.sales);
     const name = one<{ full_name: string }>(sale?.employees)?.full_name ?? "Unattributed";
@@ -311,20 +320,30 @@ async function masterDashboard(): Promise<MasterDashboard> {
         .neq("status", "reversed"),
       supabase
         .from("product_batches")
-        .select("branch_id, product_id, quantity_available, unit_cost")
+        .select("id, branch_id, product_id, quantity_available")
         .eq("status", "active"),
       supabase.from("products").select("id, branch_id, reorder_level").eq("status", "active"),
       supabase
         .from("sale_items")
-        .select("quantity, products(buy_price), sales!inner(branch_id, status, sold_at)")
+        .select("quantity, product_id, sales!inner(branch_id, status, sold_at)")
         .limit(5000),
     ]);
+
+  // Consolidated view spans every entity, so cost is fetched unscoped. Both
+  // maps are empty for a user without view_purchase_cost.
+  const [batchCosts, productCosts] = await Promise.all([
+    batchCostMapAllEntities(supabase),
+    productCostMap(supabase, null),
+  ]);
 
   const stockValue = new Map<string, number>();
   const availableByProduct = new Map<string, number>();
   for (const batch of batches ?? []) {
     const available = Math.max(0, batch.quantity_available);
-    stockValue.set(batch.branch_id, (stockValue.get(batch.branch_id) ?? 0) + available * Number(batch.unit_cost));
+    stockValue.set(
+      batch.branch_id,
+      (stockValue.get(batch.branch_id) ?? 0) + available * (batchCosts.get(batch.id) ?? 0)
+    );
     availableByProduct.set(batch.product_id, (availableByProduct.get(batch.product_id) ?? 0) + available);
   }
 
@@ -352,12 +371,12 @@ async function masterDashboard(): Promise<MasterDashboard> {
   }
 
   const costByEntity = new Map<string, number>();
-  type ItemRow = { quantity: number; products: unknown; sales: unknown };
+  type ItemRow = { quantity: number; product_id: string; sales: unknown };
   for (const item of (items ?? []) as unknown as ItemRow[]) {
     const sale = one<{ branch_id: string; status: string; sold_at: string }>(item.sales);
     if (!sale || sale.status === "reversed") continue;
     if (new Date(sale.sold_at) < monthStart) continue;
-    const buyPrice = Number(one<{ buy_price: number }>(item.products)?.buy_price ?? 0);
+    const buyPrice = productCosts.get(item.product_id) ?? 0;
     costByEntity.set(sale.branch_id, (costByEntity.get(sale.branch_id) ?? 0) + buyPrice * item.quantity);
   }
 

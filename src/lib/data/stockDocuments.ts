@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { productCostMap } from "./costs";
 import type { StockInwardType } from "@/lib/types";
 
 function one<T>(value: unknown): T | null {
@@ -68,23 +69,23 @@ export type StockInwardData = {
 /** Products available for line entry, with cost pre-fill when permitted. */
 async function loadProductOptions(
   supabase: Awaited<ReturnType<typeof getScope>>["supabase"],
-  entityId: string | null,
-  canViewCost: boolean
+  entityId: string | null
 ): Promise<ProductOption[]> {
   let query = supabase
     .from("products")
-    .select("id, sku, name, unit, buy_price")
+    .select("id, sku, name, unit")
     .eq("status", "active")
     .order("name");
   if (entityId) query = query.eq("branch_id", entityId);
 
-  const { data } = await query;
+  const [{ data }, costs] = await Promise.all([query, productCostMap(supabase, entityId)]);
   return (data ?? []).map((product) => ({
     id: product.id,
     sku: product.sku,
     name: product.name,
     unit: product.unit,
-    buyPrice: canViewCost ? Number(product.buy_price) : null,
+    // Empty map without view_purchase_cost, so the cost pre-fill is simply absent.
+    buyPrice: costs.get(product.id) ?? null,
   }));
 }
 
@@ -121,7 +122,7 @@ export async function getStockInwardData(): Promise<StockInwardData> {
     docQuery,
     supplierQuery,
     returnQuery,
-    loadProductOptions(supabase, entityId, scope.canViewCost),
+    loadProductOptions(supabase, entityId),
   ]);
 
   const rows: StockInwardRow[] = (documents ?? []).map((doc) => {
@@ -253,7 +254,7 @@ export async function getOpeningStockData(): Promise<OpeningStockData> {
 
   const [{ data: entries }, products] = await Promise.all([
     entryQuery,
-    loadProductOptions(supabase, entityId, scope.canViewCost),
+    loadProductOptions(supabase, entityId),
   ]);
 
   const rows: OpeningStockRow[] = (entries ?? []).map((entry) => {

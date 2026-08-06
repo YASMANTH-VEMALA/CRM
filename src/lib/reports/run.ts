@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope, type LoaderScope } from "@/lib/data/scope";
+import { batchCostMap, batchCostMapAllEntities, productCostMap } from "@/lib/data/costs";
 import { effectiveMarginPercent, reorderQuantity } from "@/lib/pricing";
 import { getReportDefinition } from "./definitions";
 import type { ReportColumn, ReportFilters, ReportResult, ReportRow } from "./types";
@@ -179,7 +180,7 @@ async function currentStock({ scope, filters, entityId }: ReportContext): Promis
   let query = scope.supabase
     .from("product_batches")
     .select(
-      "batch_number, quantity_available, unit_cost, expiry_date, status, branches(name), products!inner(name, sku, reorder_level), suppliers(name)"
+      "id, batch_number, quantity_available, expiry_date, status, branches(name), products!inner(name, sku, reorder_level), suppliers(name)"
     )
     .order("batch_number")
     .limit(ROW_LIMIT);
@@ -188,7 +189,7 @@ async function currentStock({ scope, filters, entityId }: ReportContext): Promis
   if (filters.product) query = query.eq("product_id", filters.product);
   if (filters.supplier) query = query.eq("supplier_id", filters.supplier);
 
-  const { data } = await query;
+  const [{ data }, costs] = await Promise.all([query, batchCostMap(scope.supabase, entityId)]);
   const batches = data ?? [];
 
   const columns: ReportColumn[] = [
@@ -213,8 +214,9 @@ async function currentStock({ scope, filters, entityId }: ReportContext): Promis
   const rows: ReportRow[] = batches.map((batch) => {
     const product = one<{ name: string; sku: string }>(batch.products);
     const available = Math.max(0, batch.quantity_available);
+    const unitCost = costs.get(batch.id) ?? 0;
     totalUnits += available;
-    totalValue += available * Number(batch.unit_cost);
+    totalValue += available * unitCost;
     return {
       entity: one<{ name: string }>(batch.branches)?.name ?? "—",
       sku: product?.sku ?? "—",
@@ -223,8 +225,8 @@ async function currentStock({ scope, filters, entityId }: ReportContext): Promis
       expiry: batch.expiry_date ?? "—",
       supplier: one<{ name: string }>(batch.suppliers)?.name ?? "—",
       available,
-      unitCost: money(Number(batch.unit_cost)),
-      value: money(available * Number(batch.unit_cost)),
+      unitCost: money(unitCost),
+      value: money(available * unitCost),
       status: batch.status,
     };
   });
@@ -517,7 +519,7 @@ async function loadProductsWithStock(
   let productQuery = scope.supabase
     .from("products")
     .select(
-      "id, sku, name, reorder_level, restock_target, supplier_id, buy_price, sell_price, margin_percent, pricing_method, max_discount_percent, branches(name), suppliers(name)"
+      "id, sku, name, reorder_level, restock_target, supplier_id, sell_price, margin_percent, pricing_method, max_discount_percent, branches(name), suppliers(name)"
     )
     .eq("status", "active")
     .order("name")
@@ -533,7 +535,11 @@ async function loadProductsWithStock(
     .eq("status", "active");
   if (entityId) batchQuery = batchQuery.eq("branch_id", entityId);
 
-  const [{ data: products }, { data: batches }] = await Promise.all([productQuery, batchQuery]);
+  const [{ data: products }, { data: batches }, costs] = await Promise.all([
+    productQuery,
+    batchQuery,
+    productCostMap(scope.supabase, entityId),
+  ]);
 
   const availableByProduct = new Map<string, number>();
   for (const batch of batches ?? []) {
@@ -543,8 +549,11 @@ async function loadProductsWithStock(
     );
   }
 
-  return ((products ?? []) as unknown as ProductStockRow[]).map((product) => ({
+  // buy_price is not selectable; it is merged in from product_costs, which is
+  // empty for a caller without view_purchase_cost.
+  return ((products ?? []) as unknown as Array<Omit<ProductStockRow, "buy_price">>).map((product) => ({
     ...product,
+    buy_price: costs.get(product.id) ?? 0,
     available: availableByProduct.get(product.id) ?? 0,
   }));
 }
@@ -941,14 +950,25 @@ async function loadSaleItems({ scope, filters, entityId }: ReportContext): Promi
   let query = scope.supabase
     .from("sale_items")
     .select(
-      "quantity, unit_price, discount, line_total, product_id, products(name, sku, buy_price), sales!inner(sold_at, status, branch_id, cashier_id)"
+      "quantity, unit_price, discount, line_total, product_id, products(name, sku), sales!inner(sold_at, status, branch_id, cashier_id)"
     )
     .limit(ROW_LIMIT);
 
   if (filters.product) query = query.eq("product_id", filters.product);
 
-  const { data } = await query;
-  return ((data ?? []) as unknown as SaleItemRow[]).filter((item) => {
+  // PostgREST cannot embed the cost view, so buy_price is merged in by
+  // product_id. Empty for a caller without view_purchase_cost, which zeroes
+  // cost of goods sold rather than leaking it.
+  const [{ data }, costs] = await Promise.all([query, productCostMap(scope.supabase, entityId)]);
+  const withCost = ((data ?? []) as unknown as Array<Omit<SaleItemRow, "products"> & { products: { name: string; sku: string } | null }>).map(
+    (item) => ({
+      ...item,
+      products: item.products
+        ? { ...item.products, buy_price: costs.get(item.product_id) ?? 0 }
+        : null,
+    })
+  );
+  return (withCost as unknown as SaleItemRow[]).filter((item) => {
     const sale = item.sales;
     if (!sale) return false;
     if (sale.status === "reversed") return false;
@@ -1206,7 +1226,7 @@ async function consolidated(ctx: ReportContext): Promise<ReportResult> {
 
   const { data: batches } = await scope.supabase
     .from("product_batches")
-    .select("branch_id, product_id, quantity_available, unit_cost")
+    .select("id, branch_id, product_id, quantity_available")
     .eq("status", "active");
 
   const { data: products } = await scope.supabase
@@ -1214,13 +1234,16 @@ async function consolidated(ctx: ReportContext): Promise<ReportResult> {
     .select("id, branch_id, reorder_level")
     .eq("status", "active");
 
+  // Consolidated view spans every entity, so cost is fetched unscoped.
+  const batchCosts = await batchCostMapAllEntities(scope.supabase);
+
   const stockValueByEntity = new Map<string, number>();
   const availableByProduct = new Map<string, number>();
   for (const batch of batches ?? []) {
     const available = Math.max(0, batch.quantity_available);
     stockValueByEntity.set(
       batch.branch_id,
-      (stockValueByEntity.get(batch.branch_id) ?? 0) + available * Number(batch.unit_cost)
+      (stockValueByEntity.get(batch.branch_id) ?? 0) + available * (batchCosts.get(batch.id) ?? 0)
     );
     availableByProduct.set(
       batch.product_id,

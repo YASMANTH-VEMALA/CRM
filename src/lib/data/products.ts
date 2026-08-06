@@ -1,5 +1,6 @@
 import "server-only";
 import { getScope } from "./scope";
+import { PRODUCT_COLUMNS, productCostMap } from "./costs";
 import { effectiveMarginPercent, reorderQuantity } from "@/lib/pricing";
 import type { PricingMethod } from "@/lib/types";
 
@@ -72,9 +73,11 @@ export async function getProductsData(): Promise<ProductsData> {
   const scope = await getScope();
   const { supabase, entityId } = scope;
 
+  // Explicit column list: buy_price is not readable by `authenticated` and a
+  // `*` select would be rejected outright. Cost comes from product_costs.
   let productQuery = supabase
     .from("products")
-    .select("*, categories(name), suppliers(name), branches(name)")
+    .select(`${PRODUCT_COLUMNS}, categories(name), suppliers(name), branches(name)`)
     .order("name");
   if (entityId) productQuery = productQuery.eq("branch_id", entityId);
 
@@ -124,9 +127,13 @@ export async function getProductsData(): Promise<ProductsData> {
     );
   }
 
+  // Empty for anyone without view_purchase_cost, so buyPrice and marginValue
+  // fall to null below without the loader having to decide.
+  const costs = await productCostMap(supabase, entityId);
+
   const rows: ProductRow[] = (products ?? []).map((product) => {
     const available = availableByProduct.get(product.id) ?? 0;
-    const buyPrice = Number(product.buy_price);
+    const buyPrice = costs.get(product.id) ?? null;
     const sellPrice = Number(product.sell_price);
 
     const stockStatus: ProductRow["stockStatus"] =
@@ -155,13 +162,13 @@ export async function getProductsData(): Promise<ProductsData> {
       supplierName: one<{ name: string }>(product.suppliers)?.name ?? null,
       unit: product.unit,
       imageUrl: product.image_url,
-      // Purchase cost and profit are removed from the payload entirely rather
-      // than hidden in the UI, so they never reach an unauthorised browser.
-      buyPrice: scope.canViewCost ? buyPrice : null,
+      // Cost never reaches the payload for an unauthorised user because the
+      // database will not hand it to this request in the first place.
+      buyPrice,
       sellPrice,
       pricingMethod: product.pricing_method,
       marginPercent: Number(product.margin_percent),
-      marginValue: scope.canViewProfit ? sellPrice - buyPrice : null,
+      marginValue: scope.canViewProfit && buyPrice !== null ? sellPrice - buyPrice : null,
       maxDiscountPercent: Number(product.max_discount_percent),
       reorderLevel: product.reorder_level,
       restockTarget: product.restock_target,
