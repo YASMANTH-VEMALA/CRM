@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      # supabase/migrations/run_all.sql is generated. It previously drifted to
+      # 0005 while the database was on 0010, which meant a fresh environment
+      # bootstrapped from it came up with no entity isolation at all. Fail the
+      # build if the committed bundle does not match the migrations.
+      - name: run_all.sql is up to date
+        run: |
+          npm run db:bundle
+          if ! git diff --quiet -- supabase/migrations/run_all.sql; then
+            echo "::error::run_all.sql is stale. Run 'npm run db:bundle' and commit the result."
+            git --no-pager diff --stat -- supabase/migrations/run_all.sql
+            exit 1
+          fi
+          echo "run_all.sql matches the migrations."
+
+      # The database tests create and delete real rows with the service-role
+      # key. They only run when a dedicated test project is configured, and
+      # ALLOW_PROD_TEST_DB is deliberately never set here.
+      - name: Database tests
+        if: ${{ secrets.TEST_SUPABASE_URL != '' }}
+        env:
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+          PRODUCTION_SUPABASE_PROJECT_REF: ${{ secrets.PRODUCTION_SUPABASE_PROJECT_REF }}
+        run: npm run test:db
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder

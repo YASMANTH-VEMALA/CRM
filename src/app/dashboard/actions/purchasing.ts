@@ -11,13 +11,8 @@ function generatePoNumber(): string {
   return `PO-${year}-${String(Date.now()).slice(-6)}`;
 }
 
-function generateGrnNumber(): string {
-  return `GRN-${Date.now()}`;
-}
-
-function generateBatchNumber(): string {
-  return `BATCH-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 9000 + 1000)}`;
-}
+// GRN and batch numbers are now issued inside erp_receive_purchase_order, off
+// the shared document sequences, so two concurrent receipts cannot collide.
 
 export async function createPurchaseOrder(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const employee = await requireUser();
