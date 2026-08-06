@@ -1,0 +1,36 @@
+{
+  "name": "crm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "tsx --test tests/*.test.ts",
+    "test:db": "tsx --test tests/db/*.test.ts",
+    "test:all": "npm run test && npm run test:db",
+    "db:bundle": "node scripts/bundle-migrations.mjs",
+    "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.0",
+    "exceljs": "^4.4.0",
+    "next": "16.2.12",
+    "openai": "^7.4.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

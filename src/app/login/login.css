@@ -1,0 +1,281 @@
+.login-page {
+  display: grid;
+  min-height: 100svh;
+  grid-template-columns: minmax(28rem, 0.95fr) minmax(34rem, 1.05fr);
+  background: #fff;
+  color: #080808;
+  overflow: hidden;
+}
+
+.login-story {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  padding: clamp(2rem, 4vw, 4rem);
+  background: #080808;
+  color: #fff;
+  overflow: hidden;
+}
+
+.login-story::before {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.065) 1px, transparent 1px);
+  background-size: 6rem 6rem;
+  content: "";
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+
+.login-brand,
+.login-story-copy,
+.login-preview,
+.login-story-foot {
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.login-brand > span {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.login-brand div { display: flex; flex-direction: column; }
+.login-brand strong { font-size: 0.9rem; }
+.login-brand small {
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.52rem;
+  text-transform: uppercase;
+}
+
+.login-story-copy {
+  max-width: 44rem;
+  margin: auto 0 3.5rem;
+}
+
+.login-label {
+  color: rgba(255, 255, 255, 0.48);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-story h1 {
+  max-width: 9ch;
+  margin: 1.4rem 0;
+  font-size: clamp(3.7rem, 6.3vw, 7rem);
+  font-weight: 520;
+  letter-spacing: -0.075em;
+  line-height: 0.9;
+}
+
+.login-story-copy > p:last-child {
+  max-width: 36rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.login-preview {
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.login-preview-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.17);
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.login-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.login-preview-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1.2rem;
+}
+.login-preview-grid > div + div { border-left: 1px solid rgba(255, 255, 255, 0.17); }
+.login-preview-grid small,
+.login-preview-grid i {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.5rem;
+  font-style: normal;
+}
+.login-preview-grid strong { font-size: 1.1rem; font-weight: 520; }
+
+.login-story-foot {
+  margin: 1.2rem 0 0;
+  color: rgba(255, 255, 255, 0.32);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.5rem;
+}
+
+.login-panel {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 6rem clamp(2rem, 7vw, 8rem) 3rem;
+}
+
+.demo-flag {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.demo-flag i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #080808; }
+.login-form-wrap { width: min(100%, 29rem); }
+.login-heading > p {
+  margin: 0 0 0.75rem;
+  color: #777;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+.login-heading h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+  font-weight: 540;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+.login-heading > span { display: block; margin-top: 1rem; color: #6c6c6c; font-size: 0.8rem; }
+
+.credentials-card {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 1rem;
+  margin: 2rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: #f4f4f2;
+  color: #080808;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+.credentials-card:hover { border-color: #080808; transform: translateY(-1px); }
+.credentials-card > span { grid-column: 1 / -1; font-family: var(--font-geist-mono), monospace; font-size: 0.53rem; text-transform: uppercase; }
+.credentials-card div { display: flex; min-width: 0; flex-direction: column; gap: 0.25rem; }
+.credentials-card small { color: #777; font-size: 0.56rem; }
+.credentials-card strong { overflow: hidden; font-family: var(--font-geist-mono), monospace; font-size: 0.6rem; font-weight: 500; text-overflow: ellipsis; }
+.credentials-card em { position: absolute; top: 1rem; right: 1rem; color: #777; font-size: 0.57rem; font-style: normal; }
+
+.login-form { display: flex; flex-direction: column; gap: 1.15rem; }
+.login-form > label > span { display: block; margin-bottom: 0.5rem; font-size: 0.67rem; font-weight: 600; }
+.login-form input {
+  width: 100%;
+  height: 3.25rem;
+  padding: 0 0.9rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 0;
+  background: #fff;
+  color: #080808;
+  font: inherit;
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+.login-form input:focus { border-color: #080808; }
+.password-field { position: relative; }
+.password-field input { padding-right: 4rem; }
+.password-field button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  padding: 0 0.9rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+
+.login-options { display: flex; align-items: center; justify-content: space-between; }
+.check-label { display: flex; align-items: center; gap: 0.55rem; font-size: 0.66rem; }
+.check-label input { width: 0.9rem; height: 0.9rem; accent-color: #080808; }
+.login-options > button { padding: 0; border: 0; border-bottom: 1px solid; background: transparent; cursor: pointer; font-size: 0.64rem; }
+.login-error,
+.login-help { margin: 0; padding: 0.75rem; border-left: 2px solid #080808; background: #f2f2f2; font-size: 0.67rem; line-height: 1.5; }
+.login-error { border-color: #080808; }
+
+.sign-in-button {
+  display: flex;
+  width: 100%;
+  height: 3.65rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  padding: 0 1.25rem;
+  border: 1px solid #080808;
+  background: #080808;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  transition: background 200ms ease, color 200ms ease;
+}
+.sign-in-button:hover { background: #fff; color: #080808; }
+.sign-in-button:disabled { cursor: wait; opacity: 0.7; }
+.sign-in-button i { font-size: 1rem; font-style: normal; }
+
+.login-links { display: flex; justify-content: space-between; margin-top: 1.4rem; font-size: 0.62rem; }
+.login-links a { border-bottom: 1px solid rgba(0, 0, 0, 0.35); }
+.login-legal { position: absolute; right: 2rem; bottom: 1.5rem; left: 2rem; margin: 0; color: #999; font-family: var(--font-geist-mono), monospace; font-size: 0.48rem; text-align: center; }
+
+@media (max-width: 960px) {
+  .login-page { grid-template-columns: 1fr; overflow: visible; }
+  .login-story { min-height: auto; padding-bottom: 3rem; }
+  .login-story-copy { margin: 7rem 0 3rem; }
+  .login-story h1 { font-size: clamp(3.7rem, 12vw, 6rem); }
+  .login-panel { min-height: auto; padding-block: 8rem 6rem; }
+}
+
+@media (max-width: 560px) {
+  .login-story-copy { margin-top: 6rem; }
+  .login-preview-grid { grid-template-columns: 1fr; }
+  .login-preview-grid > div + div { border-top: 1px solid rgba(255, 255, 255, 0.17); border-left: 0; }
+  .demo-flag { right: 1.25rem; }
+  .login-panel { padding-inline: 1.25rem; }
+  .credentials-card { grid-template-columns: 1fr; }
+  .credentials-card > span { grid-column: auto; }
+}
