@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mars Pharmacy ERP — Core Tables &amp; Relationships</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+
+  :root {
+    --ink:#14181d; --ink-soft:#454c55; --ink-faint:#6b7280;
+    --rule:#d8dde3; --rule-soft:#e9edf1; --wash:#f5f7f9;
+    --wash-warm:#fdf6e9; --wash-cool:#eef4fb;
+    --accent:#0f5c8c; --accent-2:#8a5a00; --danger:#9b2c2c; --ok:#1a6b3c;
+    --mono:"Cascadia Mono","Consolas",ui-monospace,monospace;
+    --sans:"Segoe UI","Inter",-apple-system,Arial,sans-serif;
+  }
+  * { box-sizing:border-box; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  html { font-size:10.5pt; }
+  body { margin:0; font-family:var(--sans); color:var(--ink); line-height:1.5; }
+
+  .masthead { border-bottom:2.5px solid var(--accent); padding-bottom:5mm; margin-bottom:7mm; }
+  .masthead .kicker { font-size:8.5pt; letter-spacing:.17em; text-transform:uppercase;
+    color:var(--accent); font-weight:650; margin-bottom:2.5mm; }
+  .masthead h1 { font-size:23pt; font-weight:650; letter-spacing:-.015em; margin:0 0 2.5mm; line-height:1.15; }
+  .masthead p { font-size:11pt; color:var(--ink-soft); margin:0; max-width:150mm; }
+
+  h2 { font-size:13pt; font-weight:650; letter-spacing:-.008em; margin:9mm 0 3mm;
+    padding-bottom:1.5mm; border-bottom:1px solid var(--rule); page-break-after:avoid; }
+  h3 { font-size:11pt; font-weight:650; margin:6mm 0 2mm; page-break-after:avoid; }
+  p { margin:0 0 3mm; }
+  ul,ol { margin:0 0 3.5mm; padding-left:6mm; }
+  li { margin-bottom:1.4mm; }
+  strong { font-weight:650; }
+
+  code { font-family:var(--mono); font-size:.875em; background:var(--wash);
+    border:1px solid var(--rule-soft); border-radius:3px; padding:.5pt 2.5pt; white-space:nowrap; }
+  pre { font-family:var(--mono); font-size:8.3pt; line-height:1.45; background:var(--wash);
+    border:1px solid var(--rule); border-left:3px solid var(--accent); border-radius:3px;
+    padding:3.5mm 4mm; margin:0 0 4mm; white-space:pre; page-break-inside:avoid; }
+  pre code { background:none; border:0; padding:0; font-size:1em; }
+
+  table { width:100%; border-collapse:collapse; font-size:9pt; margin:0 0 4mm; page-break-inside:avoid; }
+  thead th { text-align:left; font-weight:650; font-size:8.5pt; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--ink-soft); border-bottom:1.5px solid var(--ink-soft);
+    padding:2mm 2.5mm; vertical-align:bottom; }
+  tbody td { padding:1.8mm 2.5mm; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+  tbody tr:nth-child(even) { background:#fafbfc; }
+  table code { font-size:.85em; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent);
+    background:var(--wash-cool); padding:3.5mm 4mm; margin:0 0 4.5mm; font-size:9.5pt;
+    page-break-inside:avoid; }
+  .callout > :last-child { margin-bottom:0; }
+  .callout .label { display:block; font-size:8pt; letter-spacing:.13em; text-transform:uppercase;
+    font-weight:700; color:var(--accent); margin-bottom:1.5mm; }
+  .callout.warn { border-left-color:var(--accent-2); background:var(--wash-warm); }
+  .callout.warn .label { color:var(--accent-2); }
+  .callout.risk { border-left-color:var(--danger); background:#fdf0f0; }
+  .callout.risk .label { color:var(--danger); }
+  .callout.ok { border-left-color:var(--ok); background:#eef7f1; }
+  .callout.ok .label { color:var(--ok); }
+
+  /* ---- table cards ---- */
+  .card { border:1px solid var(--rule); border-radius:3px; margin:0 0 5mm;
+    page-break-inside:avoid; background:#fcfdfe; }
+  .card > header { background:var(--wash); border-bottom:1px solid var(--rule);
+    padding:2.5mm 4mm; display:flex; align-items:baseline; gap:3mm; }
+  .card > header h3 { margin:0; font-family:var(--mono); font-size:11.5pt; font-weight:700; }
+  .card > header .tag { font-size:8pt; letter-spacing:.08em; text-transform:uppercase;
+    font-weight:700; color:#fff; background:var(--accent); border-radius:2px; padding:.6mm 2mm; }
+  .card > header .tag.hub { background:var(--danger); }
+  .card > header .tag.ledger { background:#5b3fa8; }
+  .card > header .role { font-size:9pt; color:var(--ink-faint); margin-left:auto; text-align:right; }
+  .card .body { padding:3.5mm 4mm; }
+  .card .body > :last-child { margin-bottom:0; }
+  .card table { margin-bottom:3mm; }
+  .card .fk { font-size:8.8pt; }
+  .card .fk th { width:24%; }
+
+  .note { font-size:9pt; padding:2.5mm 3mm; border-radius:3px; margin-bottom:0; }
+  .note.locked { background:#fdf0f0; border-left:3px solid var(--danger); }
+  .note.cheap  { background:#eef7f1; border-left:3px solid var(--ok); }
+  .note b { display:block; font-size:8pt; letter-spacing:.1em; text-transform:uppercase; margin-bottom:1mm; }
+  .note.locked b { color:var(--danger); }
+  .note.cheap b  { color:var(--ok); }
+
+  figure { margin:0 0 5mm; page-break-inside:avoid; }
+  figure svg { width:100%; height:auto; display:block; }
+  figcaption { font-size:8.5pt; color:var(--ink-faint); margin-top:2mm; text-align:center; }
+
+  .legend { display:flex; gap:6mm; flex-wrap:wrap; font-size:8.5pt; color:var(--ink-soft);
+    margin-bottom:4mm; }
+  .legend span { display:flex; align-items:center; gap:1.5mm; }
+  .legend i { display:inline-block; width:9mm; height:0; border-top:1.4px solid var(--ink-soft); }
+  .legend i.dash { border-top-style:dashed; }
+
+  .page { page-break-before:always; }
+  .closer { border-top:2px solid var(--accent); border-bottom:2px solid var(--accent);
+    padding:5mm 0; margin-top:6mm; font-size:10.5pt; page-break-inside:avoid; }
+  .closer .label { display:block; font-size:8pt; letter-spacing:.13em; text-transform:uppercase;
+    font-weight:700; color:var(--accent); margin-bottom:2mm; }
+  .closer p:last-child { margin-bottom:0; }
+  .footnote { font-size:9pt; color:var(--ink-faint); }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="kicker">Mars Pharmacy ERP &middot; Structural reference</div>
+  <h1>The eight core tables<br>and how they relate</h1>
+  <p>36 tables in total. These eight carry the business. What matters is not their columns — it's the arrows between them, because arrows are what you cannot change later.</p>
+</div>
+
+<div class="callout">
+  <span class="label">The principle this document is organised around</span>
+  <p><strong>Columns are cheap to change. Relationships are not.</strong></p>
+  <p>Adding <code>first_name</code> / <code>last_name</code> beside <code>name</code> costs nothing — no foreign key points at a column. But once <code>product_batches</code>, <code>sale_items</code> and <code>stock_movements</code> all point at <code>products.id</code> and there is live data on those links, changing <em>what points at what</em> means migrating every dependent row.</p>
+  <p>So every table below is described by its <strong>keys and its arrows first</strong>, and its columns second.</p>
+</div>
+
+<h2>The map</h2>
+
+<div class="legend">
+  <span><i></i> foreign key (child &rarr; parent)</span>
+  <span><i class="dash"></i> soft reference — no FK constraint</span>
+  <span><strong>CASCADE</strong> = deleting the parent deletes these rows</span>
+</div>
+
+<figure>
+<svg viewBox="0 0 720 560" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#454c55"/>
+    </marker>
+    <marker id="arh" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#9b2c2c"/>
+    </marker>
+  </defs>
+
+  <style>
+    .bx  { fill:#ffffff; stroke:#454c55; stroke-width:1.4; rx:4; }
+    .bxe { fill:#eef4fb; stroke:#0f5c8c; stroke-width:1.8; }
+    .bxh { fill:#fdf0f0; stroke:#9b2c2c; stroke-width:2; }
+    .bxl { fill:#f2eefb; stroke:#5b3fa8; stroke-width:1.8; }
+    .nm  { font-family:"Cascadia Mono",Consolas,monospace; font-size:12px; font-weight:700; fill:#14181d; }
+    .sub { font-size:9.5px; fill:#6b7280; }
+    .ln  { stroke:#454c55; stroke-width:1.3; fill:none; marker-end:url(#ar); }
+    .lnh { stroke:#9b2c2c; stroke-width:1.6; fill:none; marker-end:url(#arh); }
+    .lnd { stroke:#6b7280; stroke-width:1.2; fill:none; stroke-dasharray:4 3; marker-end:url(#ar); }
+    .fk  { font-family:"Cascadia Mono",Consolas,monospace; font-size:8.5px; fill:#454c55; }
+    .fkb { font-family:"Cascadia Mono",Consolas,monospace; font-size:8.5px; fill:#9b2c2c; font-weight:700; }
+  </style>
+
+  <!-- Tier 1: branches -->
+  <rect class="bx bxe" x="288" y="14" width="144" height="42"/>
+  <text class="nm" x="360" y="33" text-anchor="middle">branches</text>
+  <text class="sub" x="360" y="47" text-anchor="middle">the entity</text>
+
+  <!-- Tier 2 -->
+  <rect class="bx" x="24" y="112" width="132" height="42"/>
+  <text class="nm" x="90" y="131" text-anchor="middle">employees</text>
+  <text class="sub" x="90" y="145" text-anchor="middle">the person</text>
+
+  <rect class="bx bxe" x="288" y="112" width="144" height="42"/>
+  <text class="nm" x="360" y="131" text-anchor="middle">products</text>
+  <text class="sub" x="360" y="145" text-anchor="middle">catalogue · no qty</text>
+
+  <rect class="bx" x="564" y="112" width="132" height="42"/>
+  <text class="nm" x="630" y="131" text-anchor="middle">suppliers</text>
+  <text class="sub" x="630" y="145" text-anchor="middle">+ categories</text>
+
+  <!-- Tier 3: the hub -->
+  <rect class="bx bxh" x="270" y="214" width="180" height="46"/>
+  <text class="nm" x="360" y="234" text-anchor="middle">product_batches</text>
+  <text class="sub" x="360" y="249" text-anchor="middle">the real stock · cost · expiry</text>
+
+  <!-- Tier 4: four children -->
+  <rect class="bx" x="14" y="330" width="136" height="42"/>
+  <text class="nm" x="82" y="349" text-anchor="middle">sale_items</text>
+  <text class="sub" x="82" y="363" text-anchor="middle">lines</text>
+
+  <rect class="bx bxl" x="176" y="330" width="164" height="42"/>
+  <text class="nm" x="258" y="349" text-anchor="middle">stock_movements</text>
+  <text class="sub" x="258" y="363" text-anchor="middle">append-only ledger</text>
+
+  <rect class="bx" x="366" y="330" width="116" height="42"/>
+  <text class="nm" x="424" y="349" text-anchor="middle">returns</text>
+  <text class="sub" x="424" y="363" text-anchor="middle">stock out</text>
+
+  <rect class="bx" x="508" y="330" width="188" height="42"/>
+  <text class="nm" x="602" y="349" text-anchor="middle">stock_inward_items</text>
+  <text class="sub" x="602" y="363" text-anchor="middle">lines</text>
+
+  <!-- Tier 5: document headers -->
+  <rect class="bx" x="14" y="452" width="136" height="42"/>
+  <text class="nm" x="82" y="471" text-anchor="middle">sales</text>
+  <text class="sub" x="82" y="485" text-anchor="middle">money in</text>
+
+  <rect class="bx" x="508" y="452" width="188" height="42"/>
+  <text class="nm" x="602" y="471" text-anchor="middle">stock_inwards</text>
+  <text class="sub" x="602" y="485" text-anchor="middle">goods in</text>
+
+  <!-- === arrows === -->
+
+  <!-- products -> branches -->
+  <path class="ln" d="M360,112 L360,58"/>
+  <text class="fk" x="366" y="88">branch_id</text>
+
+  <!-- employees -> branches -->
+  <path class="ln" d="M90,112 L90,80 L286,80 L286,44"/>
+  <text class="fk" x="96" y="76">branch_id (nullable)</text>
+
+  <!-- suppliers -> branches -->
+  <path class="ln" d="M630,112 L630,80 L434,80 L434,44"/>
+  <text class="fk" x="540" y="76">branch_id</text>
+
+  <!-- products -> suppliers / categories -->
+  <path class="ln" d="M432,133 L562,133"/>
+  <text class="fk" x="440" y="128">supplier_id</text>
+
+  <!-- batches -> products -->
+  <path class="lnh" d="M360,214 L360,156"/>
+  <text class="fkb" x="366" y="188">product_id  CASCADE</text>
+
+  <!-- sale_items -> batches -->
+  <path class="ln" d="M82,330 L82,290 L268,290 L268,262"/>
+  <text class="fk" x="88" y="286">batch_id</text>
+
+  <!-- movements -> batches -->
+  <path class="lnh" d="M258,330 L258,300 L330,300 L330,262"/>
+  <text class="fkb" x="196" y="296">batch_id</text>
+
+  <!-- returns -> batches -->
+  <path class="ln" d="M424,330 L424,300 L392,300 L392,262"/>
+  <text class="fk" x="430" y="296">batch_id</text>
+
+  <!-- inward_items -> batches -->
+  <path class="ln" d="M602,330 L602,290 L452,290 L452,262"/>
+  <text class="fk" x="500" y="286">batch_id</text>
+
+  <!-- sale_items -> sales -->
+  <path class="ln" d="M82,452 L82,374"/>
+  <text class="fk" x="88" y="416">sale_id  CASCADE</text>
+
+  <!-- inward_items -> inwards -->
+  <path class="ln" d="M602,452 L602,374"/>
+  <text class="fk" x="608" y="416">inward_id  CASCADE</text>
+
+  <!-- ledger soft reference -->
+  <path class="lnd" d="M176,351 L156,351"/>
+  <text class="fk" x="14" y="392">reference_type / reference_id</text>
+  <text class="fk" x="14" y="404">points at ANY document —</text>
+  <text class="fk" x="14" y="416">deliberately not a foreign key</text>
+
+  <!-- returns <- sales note -->
+  <path class="lnd" d="M366,362 L152,470" />
+  <text class="fk" x="250" y="440">original_sale_id</text>
+</svg>
+<figcaption>Every arrow is a real foreign key unless dashed. <code>branch_id</code> also exists on <code>sale_items</code>' parents, <code>returns</code>, <code>stock_movements</code> and <code>stock_inwards</code> — omitted here to keep the picture readable.</figcaption>
+</figure>
+
+<div class="callout ok">
+  <span class="label">Read the map in one sentence</span>
+  <p><code>branches</code> owns everything. <code>products</code> is a catalogue with no quantity. <strong><code>product_batches</code> is the hub</strong> — it holds the actual stock, and four different things point at it. <code>stock_movements</code> records every change to it. <code>sales</code> and <code>stock_inwards</code> are documents that own their line rows.</p>
+</div>
+
+<!-- ============================== PAGE 2 ============================== -->
+<div class="page"></div>
+
+<h2>Why this structure is safe to build on</h2>
+
+<h3>1. Every primary key is a surrogate UUID</h3>
+<pre><code>id uuid primary key default gen_random_uuid()</code></pre>
+<p>On all 36 tables, without exception. This is the single most important structural property of the schema, because it means <strong>no business value is load-bearing in any relationship.</strong></p>
+<p><code>sku</code>, <code>name</code>, <code>invoice_number</code>, <code>batch_number</code>, <code>reference</code> — every one of them can be renamed, reformatted, split into two columns, or have its uniqueness rules changed, and not one foreign key notices. The arrows point at meaningless UUIDs, and meaningless UUIDs never need to change.</p>
+
+<h3>2. Both kinds of change have already been done, correctly</h3>
+<p>Migration <code>0006</code> is the evidence.</p>
+
+<p><strong>The cheap kind</strong> — six columns onto the most connected table in the schema, one statement, no data risk:</p>
+<pre><code>alter table products
+  add column manufacturer text,
+  add column image_url text,
+  add column pricing_method text not null default 'fixed',
+  add column margin_percent numeric not null default 0,
+  add column max_discount_percent numeric not null default 0,
+  add column restock_target int not null default 0;</code></pre>
+
+<p><strong>The hard kind</strong> — <code>sku</code> went from globally unique to unique per entity, which meant adding a mandatory foreign key to a populated table:</p>
+<pre><code>alter table products add column branch_id uuid references branches(id);  -- 1. nullable
+-- 2. backfill every existing row to an entity
+alter table products alter column branch_id set not null;                -- 3. tighten
+alter table products drop constraint products_sku_key;                   -- 4. swap
+alter table products add constraint products_branch_sku_key unique (branch_id, sku);</code></pre>
+
+<div class="callout ok">
+  <span class="label">The recipe</span>
+  <p><strong>Add nullable &rarr; backfill &rarr; set NOT NULL &rarr; swap the constraint.</strong> Four steps, no downtime, no orphans. That is how a structural change is done on live data, and it is already in the repository at <code>0006:111–172</code>.</p>
+</div>
+
+<h3>3. One deliberate exception: the ledger's reference is soft</h3>
+<pre><code>reference_type text,     -- 'sale' | 'stock_inward' | 'return' | 'opening_stock' | …
+reference_id   uuid,     -- no  references  clause
+reference_number text</code></pre>
+<p><code>stock_movements</code> must point back at <strong>six different document types</strong>, and a single column cannot carry a foreign key to six different tables. So this link is polymorphic and unenforced by the database.</p>
+<p><strong>The trade-off, stated plainly:</strong> flexibility in exchange for no referential integrity on that one link. It is contained — only the <code>erp_*</code> functions ever write it, and they always write both halves together — but it is the one arrow in the system that Postgres does not guarantee.</p>
+
+<h2>Where a future change would actually hurt</h2>
+
+<div class="callout warn">
+  <span class="label">Exposure 1 · returns and stock_transfers have no line tables</span>
+  <p>Both carry <code>product_id</code>, <code>batch_id</code> and <code>quantity</code> <strong>on the header row</strong>. So one return is one product, one batch. Every other document in the system is header + lines; these two are not.</p>
+  <p>If a client asks for <em>&ldquo;a customer returned three different medicines on one slip&rdquo;</em>, that needs a new <code>return_items</code> table plus a migration of existing single-line returns into it. <strong>That is a relationship change, not a column change</strong> — the expensive category.</p>
+  <p class="footnote">Not wrong today. It is simply the most likely structural request to arrive.</p>
+</div>
+
+<div class="callout risk">
+  <span class="label">Exposure 2 · the catalogue is per-entity — the biggest bet in the schema</span>
+  <p><code>products.branch_id</code> is <code>NOT NULL</code>. Each pharmacy owns its own product rows; ten entities selling paracetamol means ten <code>products</code> rows.</p>
+  <p>This is the right call for independently operated pharmacies and it is what makes the isolation model clean. But if a client later wants a <strong>shared central catalogue with per-entity pricing on top</strong>, that means splitting <code>products</code> into a shared master plus a per-entity overlay, and re-pointing <code>product_batches</code>, <code>sale_items</code>, <code>stock_movements</code> and six other tables.</p>
+  <p><strong>If asked &ldquo;what would be hardest to change?&rdquo; — this is the honest answer.</strong></p>
+</div>
+
+<h3>One small thing to tidy</h3>
+<p><code>product_batches.branch_id</code> and <code>sales.branch_id</code> were declared <code>on delete set null</code> in <code>0001</code>, then made <code>NOT NULL</code> in <code>0006</code>. Net effect: deleting a branch raises a constraint error rather than nulling the column. The data is safe, but the behaviour is an accident rather than a decision, and the error message would be confusing. <code>on delete restrict</code> would express the same rule on purpose. Two-line fix; not urgent, since <code>branches.is_active</code> is the intended path anyway.</p>
+
+<!-- ============================== PAGE 3 ============================== -->
+<div class="page"></div>
+
+<h2>The eight tables</h2>
+<p class="footnote">Each card lists what the table points at, what points at it, and then — second — the columns that matter.</p>
+
+<!-- 1 branches -->
+<div class="card">
+  <header><h3>branches</h3><span class="tag">entity</span><span class="role">the isolation boundary</span></header>
+  <div class="body">
+    <p>One row = one independently operated pharmacy. The UI calls it an <em>Entity</em>.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td>nothing — it is the root</td></tr>
+        <tr><th>Pointed at by</th><td><strong>every entity-owned table (20+)</strong> via <code>branch_id</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>code</code> (UNIQUE, e.g. <code>ENT-001</code>), <code>name</code>, <code>currency</code> (default <code>TZS</code>), <code>timezone</code>, <code>is_active</code>.</p>
+    <div class="note locked"><b>Locked</b> <code>branch_id NOT NULL</code> on 20+ tables. Entity ownership is the deepest assumption in the schema — every RLS policy is built on it.</div>
+  </div>
+</div>
+
+<!-- 2 employees -->
+<div class="card">
+  <header><h3>employees</h3><span class="tag">identity</span><span class="role">the person, and what they may do</span></header>
+  <div class="body">
+    <p>Business identity, separate from the login. Supabase Auth holds the password; this table holds the role and permissions.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td><code>auth.users</code> (<code>auth_user_id</code>, UNIQUE) &middot; <code>branches</code> (<code>branch_id</code>, <strong>nullable</strong> — NULL only for master admins)</td></tr>
+        <tr><th>Pointed at by</th><td><code>sales.cashier_id</code> &middot; <code>stock_movements.created_by</code> &middot; <code>returns.requested_by</code> / <code>approved_by</code> &middot; <code>stock_inwards.created_by</code> / <code>confirmed_by</code> &middot; <code>audit_logs</code> &middot; <code>employee_entities</code> &middot; and ~10 more <code>created_by</code>-style links</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>role</code> (4 values) &middot; <code>permission_overrides jsonb</code> &middot; <code>max_discount_percent</code> (per-person ceiling) &middot; <code>status</code>.</p>
+    <div class="note cheap"><b>Cheap</b> New roles, new permissions, new per-person limits — all data or column changes. Two triggers guard this table; see the security reference.</div>
+  </div>
+</div>
+
+<!-- 3 products -->
+<div class="card">
+  <header><h3>products</h3><span class="tag">catalogue</span><span class="role">what you sell — never how much you have</span></header>
+  <div class="body">
+    <p><strong>No quantity column, deliberately.</strong> This is a catalogue: name, pack size, price, reorder rules.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td><code>branches</code> (<code>branch_id NOT NULL</code>) &middot; <code>categories</code> &middot; <code>suppliers</code> (default supplier)</td></tr>
+        <tr><th>Pointed at by</th><td><code>product_batches</code> <strong>(CASCADE)</strong> &middot; <code>sale_items</code> &middot; <code>stock_movements</code> &middot; <code>returns</code> &middot; <code>stock_inward_items</code> &middot; <code>opening_stock_items</code> &middot; <code>purchase_order_items</code> &middot; <code>received_order_items</code> &middot; <code>product_price_history</code> &middot; <code>stock_transfers</code> &middot; <code>stock_count_items</code> — <strong>11 tables</strong></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>sku</code> (<strong>UNIQUE per entity</strong>, not global) &middot; <code>buy_price</code> <em>(SELECT revoked)</em> &middot; <code>sell_price</code> &middot; <code>pricing_method</code> &middot; <code>margin_percent</code> &middot; <code>max_discount_percent</code> (per-product ceiling) &middot; <code>reorder_level</code> / <code>restock_target</code>.</p>
+    <div class="note locked"><b>Locked</b> The most referenced table in the schema — 11 tables point at <code>products.id</code>. Adding columns is free; changing what a product <em>is</em> (see Exposure 2) is the expensive change.</div>
+  </div>
+</div>
+
+<!-- 4 product_batches -->
+<div class="card">
+  <header><h3>product_batches</h3><span class="tag hub">the hub</span><span class="role">the actual stock on the shelf</span></header>
+  <div class="body">
+    <p>One row = one physical lot, with its own cost, its own expiry and its own quantity. Two boxes of the same medicine bought at different prices are genuinely different rows.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td><code>products</code> (<code>product_id NOT NULL</code>, <strong>ON DELETE CASCADE</strong>) &middot; <code>branches</code> &middot; <code>suppliers</code></td></tr>
+        <tr><th>Pointed at by</th><td><code>stock_movements</code> &middot; <code>sale_items</code> &middot; <code>returns</code> &middot; <code>stock_inward_items</code> &middot; <code>opening_stock_items</code> &middot; <code>received_order_items</code> &middot; <code>stock_transfers</code> — <strong>7 tables</strong></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>batch_number</code> &middot; <code>quantity_received</code> &middot; <code>quantity_available</code> <em>(UPDATE revoked — ledger-derived)</em> &middot; <code>unit_cost</code> <em>(SELECT revoked)</em> &middot; <code>expiry_date</code> &middot; <code>status</code> &middot; <code>source_type</code> / <code>source_id</code>.</p>
+    <div class="note locked"><b>Locked</b> This is the pivot of the whole design. <code>source_type</code>/<code>source_id</code> traces every batch back to the document that created it — the traceability regulators ask for. <code>ON DELETE CASCADE</code> from <code>products</code> means deleting a product destroys its stock history; in practice products are <code>discontinued</code>, never deleted.</div>
+  </div>
+</div>
+
+<!-- ============================== PAGE 4 ============================== -->
+<div class="page"></div>
+
+<!-- 5 stock_movements -->
+<div class="card">
+  <header><h3>stock_movements</h3><span class="tag ledger">ledger</span><span class="role">append-only truth</span></header>
+  <div class="body">
+    <p>Every stock change, ever, with the running balance. Nothing is updated or deleted. <strong>Nothing points at this table</strong> — it is terminal, which is what lets it be append-only.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td><code>product_batches</code> &middot; <code>products</code> &middot; <code>branches</code> &middot; <code>employees</code> (<code>created_by</code>) &middot; <em>plus the soft <code>reference_type</code> / <code>reference_id</code> pair</em></td></tr>
+        <tr><th>Pointed at by</th><td><strong>nothing</strong></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>movement_type</code> (13 values) &middot; <code>quantity_delta</code> (<strong>signed</strong>) &middot; <code>balance_after</code> &middot; <code>reason</code>.</p>
+    <div class="note locked"><b>Locked</b> INSERT, UPDATE and DELETE are revoked from <code>authenticated</code> and <code>anon</code>. The single writer is <code>fn_post_movement</code>, revoked from every client role. The ledger sums exactly to <code>product_batches.quantity_available</code>, and a test asserts it.</div>
+  </div>
+</div>
+
+<!-- 6 sales -->
+<div class="card">
+  <header><h3>sales</h3> &rarr; <h3>sale_items</h3><span class="tag">document</span><span class="role">money in</span></header>
+  <div class="body">
+    <p>Header + lines. The header holds who, when, how paid and the totals; the lines hold which batch of which product, at what price.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>sales.id</code> &middot; <code>sale_items.id</code></td></tr>
+        <tr><th>Points at</th><td><code>sales</code> &rarr; <code>customers</code>, <code>employees</code> (<code>cashier_id</code>), <code>branches</code><br><code>sale_items</code> &rarr; <code>sales</code> <strong>(CASCADE)</strong>, <code>products</code>, <code>product_batches</code></td></tr>
+        <tr><th>Pointed at by</th><td><code>sale_items.sale_id</code> &middot; <code>returns.original_sale_id</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>invoice_number</code> (UNIQUE) &middot; <code>payment_method</code> (5 values incl. M-Pesa, Selcom) &middot; <code>subtotal</code>/<code>discount</code>/<code>tax</code>/<code>total</code> — <strong>all derived server-side</strong> &middot; <code>status</code> &middot; <code>request_key</code> (<strong>UNIQUE per entity</strong> — the double-click guard).</p>
+    <div class="note locked"><b>Locked</b> <code>sale_items</code> has no UPDATE or DELETE policy — immutable. Cancelling never deletes; it posts <code>sale_reversal</code> ledger rows and stamps who, when and why.</div>
+  </div>
+</div>
+
+<!-- 7 stock_inwards -->
+<div class="card">
+  <header><h3>stock_inwards</h3> &rarr; <h3>stock_inward_items</h3><span class="tag">document</span><span class="role">goods in</span></header>
+  <div class="body">
+    <p>Header + lines, draft until confirmed. Confirming creates the batches and writes the ledger in one transaction.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>stock_inwards.id</code> &middot; <code>stock_inward_items.id</code></td></tr>
+        <tr><th>Points at</th><td><code>stock_inwards</code> &rarr; <code>suppliers</code>, <code>branches</code>, <code>employees</code>, <code>returns</code> (<code>supplier_return_id</code>, links a replacement to its return)<br><code>stock_inward_items</code> &rarr; <code>stock_inwards</code> <strong>(CASCADE)</strong>, <code>products</code>, <code>product_batches</code> (filled on confirm)</td></tr>
+        <tr><th>Pointed at by</th><td><code>stock_inward_items.inward_id</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>reference</code> (UNIQUE) &middot; <code>inward_type</code> (4 values) &middot; <code>invoice_number</code> (<strong>UNIQUE per branch+supplier</strong> while not cancelled) &middot; <code>status</code> &middot; lines carry both <code>quantity</code> <em>and</em> <code>free_quantity</code>.</p>
+    <div class="note cheap"><b>Notable</b> Paid units post as <code>purchase</code>; free units post as a separate <code>foc</code> ledger movement. Free goods stay identifiable forever — most systems cannot tell you how much margin came from free stock.</div>
+  </div>
+</div>
+
+<!-- 8 returns -->
+<div class="card">
+  <header><h3>returns</h3><span class="tag">document</span><span class="role">goods out — all five kinds</span></header>
+  <div class="body">
+    <p>One table serves customer returns, supplier returns, write-offs, expiry and staff consumption. They share one shape: stock moves, with a documented reason and a named approver.</p>
+    <table class="fk">
+      <tbody>
+        <tr><th>PK</th><td><code>id uuid</code></td></tr>
+        <tr><th>Points at</th><td><code>products</code> &middot; <code>product_batches</code> &middot; <code>branches</code> &middot; <code>employees</code> (<code>requested_by</code>, <code>approved_by</code>, <code>consumed_by</code>) &middot; <code>sales</code> (<code>original_sale_id</code>) &middot; <code>purchase_orders</code> (<code>original_po_id</code>)</td></tr>
+        <tr><th>Pointed at by</th><td><code>stock_inwards.supplier_return_id</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Columns that matter:</strong> <code>reference</code> (UNIQUE) &middot; <code>type</code> (<code>customer</code> | <code>supplier</code> | <code>damaged</code> | <code>expired</code> | <code>employee_consumption</code>) &middot; <code>quantity</code> &middot; <code>status</code> &middot; <code>resolution_type</code> &middot; <code>evidence_url</code>.</p>
+    <div class="note locked"><b>The exposure</b> <code>product_id</code>, <code>batch_id</code> and <code>quantity</code> sit on the header — <strong>one return = one product, one batch.</strong> A multi-line return slip would need a new <code>return_items</code> table and a data migration. See Exposure 1.</div>
+  </div>
+</div>
+
+<div class="closer">
+  <span class="label">If you take one thing from this document</span>
+  <p>Every primary key is a meaningless UUID, so <strong>no column is load-bearing in any relationship</strong> — names, SKUs and invoice numbers can all change freely. The arrows are what's fixed, and they encode two real bets: that a product belongs to exactly one entity, and that a return concerns exactly one batch. Those are the two things that would cost real money to change; everything else is a column.</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mars Pharmacy ERP — Project, Schema &amp; Security Walkthrough</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  :root {
+    --ink:        #14181d;
+    --ink-soft:   #454c55;
+    --ink-faint:  #6b7280;
+    --rule:       #d8dde3;
+    --rule-soft:  #e9edf1;
+    --wash:       #f5f7f9;
+    --wash-warm:  #fdf6e9;
+    --wash-cool:  #eef4fb;
+    --accent:     #0f5c8c;
+    --accent-2:   #8a5a00;
+    --danger:     #9b2c2c;
+    --mono: "Cascadia Mono", "Consolas", "SFMono-Regular", ui-monospace, monospace;
+    --sans: "Segoe UI", "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+  html { font-size: 10.5pt; }
+
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    line-height: 1.52;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ---------- cover ---------- */
+
+  .cover {
+    height: 252mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .cover .kicker {
+    font-size: 9pt;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10mm;
+  }
+  .cover h1 {
+    font-size: 30pt;
+    line-height: 1.14;
+    margin: 0 0 5mm;
+    font-weight: 650;
+    letter-spacing: -.015em;
+  }
+  .cover .sub {
+    font-size: 13pt;
+    color: var(--ink-soft);
+    margin: 0 0 12mm;
+    font-weight: 400;
+    max-width: 130mm;
+  }
+  .cover .rule { height: 3px; width: 56mm; background: var(--accent); margin-bottom: 12mm; }
+
+  .factgrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6mm 8mm;
+    border-top: 1px solid var(--rule);
+    padding-top: 8mm;
+    margin-bottom: 12mm;
+  }
+  .factgrid div { font-size: 9.5pt; }
+  .factgrid b { display: block; font-size: 15pt; font-weight: 650; letter-spacing: -.01em; }
+  .factgrid span { color: var(--ink-faint); }
+
+  .cover .meta { font-size: 9pt; color: var(--ink-faint); line-height: 1.8; }
+  .cover .meta strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---------- contents ---------- */
+
+  .toc { page-break-after: always; }
+  .toc h2 { border: 0; margin-top: 0; }
+  .toc ol { list-style: none; padding: 0; margin: 0; counter-reset: t; }
+  .toc li {
+    counter-increment: t;
+    display: flex;
+    align-items: baseline;
+    gap: 4mm;
+    padding: 3.2mm 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .toc li::before {
+    content: counter(t);
+    flex: 0 0 9mm;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+    color: var(--accent);
+    font-size: 12pt;
+  }
+  .toc .t { font-weight: 600; flex: 0 0 auto; }
+  .toc .d { color: var(--ink-faint); font-size: 9.5pt; }
+
+  /* ---------- structure ---------- */
+
+  .step { page-break-before: always; }
+
+  h1.step-title {
+    font-size: 19pt;
+    font-weight: 650;
+    letter-spacing: -.012em;
+    margin: 0 0 1mm;
+    line-height: 1.2;
+  }
+  .step-eyebrow {
+    font-size: 8.5pt;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 650;
+    margin-bottom: 2mm;
+  }
+  .step-lede {
+    font-size: 11pt;
+    color: var(--ink-soft);
+    margin: 0 0 7mm;
+    padding-bottom: 5mm;
+    border-bottom: 2px solid var(--rule);
+  }
+
+  h2 {
+    font-size: 13pt;
+    font-weight: 650;
+    letter-spacing: -.008em;
+    margin: 8mm 0 3mm;
+    padding-bottom: 1.5mm;
+    border-bottom: 1px solid var(--rule);
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 650;
+    margin: 6mm 0 2mm;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 10pt;
+    font-weight: 650;
+    margin: 4mm 0 1.5mm;
+    color: var(--ink-soft);
+    page-break-after: avoid;
+  }
+
+  p { margin: 0 0 3mm; }
+  ul, ol { margin: 0 0 3.5mm; padding-left: 6mm; }
+  li { margin-bottom: 1.4mm; }
+  li > ul, li > ol { margin-top: 1.4mm; }
+
+  strong { font-weight: 650; }
+  a { color: var(--accent); text-decoration: none; }
+
+  code {
+    font-family: var(--mono);
+    font-size: .875em;
+    background: var(--wash);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: .5pt 2.5pt;
+    white-space: nowrap;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 8.2pt;
+    line-height: 1.45;
+    background: var(--wash);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    padding: 3.5mm 4mm;
+    margin: 0 0 4mm;
+    overflow: hidden;
+    white-space: pre;
+    page-break-inside: avoid;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: 1em; white-space: pre; }
+  pre.diagram { font-size: 7.8pt; line-height: 1.35; border-left-color: var(--ink-faint); }
+
+  /* ---------- tables ---------- */
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 0 0 4.5mm;
+    page-break-inside: avoid;
+  }
+  thead th {
+    text-align: left;
+    font-weight: 650;
+    font-size: 8.5pt;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1.5px solid var(--ink-soft);
+    padding: 2mm 2.5mm;
+    vertical-align: bottom;
+  }
+  tbody td {
+    padding: 2mm 2.5mm;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: #fafbfc; }
+  table code { white-space: nowrap; font-size: .85em; }
+  td.c, th.c { text-align: center; }
+  .yes { color: #1a6b3c; font-weight: 700; }
+  .no  { color: var(--ink-faint); }
+  table.matrix { font-size: 8.4pt; }
+  table.matrix td:first-child { white-space: nowrap; }
+  table.tight td { padding: 1.5mm 2.5mm; }
+
+  /* ---------- callouts ---------- */
+
+  .callout {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    background: var(--wash-cool);
+    padding: 3.5mm 4mm;
+    margin: 0 0 4.5mm;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .callout > :last-child { margin-bottom: 0; }
+  .callout .label {
+    display: block;
+    font-size: 8pt;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 1.5mm;
+  }
+  .callout.warn { border-left-color: var(--accent-2); background: var(--wash-warm); }
+  .callout.warn .label { color: var(--accent-2); }
+  .callout.say { border-left-color: #2f6b4f; background: #eef7f1; }
+  .callout.say .label { color: #2f6b4f; }
+  .callout.say p { font-style: italic; }
+  .callout.risk { border-left-color: var(--danger); background: #fdf0f0; }
+  .callout.risk .label { color: var(--danger); }
+
+  .lock {
+    font-weight: 700;
+    color: var(--danger);
+    font-size: 8.5pt;
+    letter-spacing: .04em;
+  }
+
+  .keyidea {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 3.5mm 4mm;
+    margin: 0 0 3.5mm;
+    page-break-inside: avoid;
+    background: #fcfdfe;
+  }
+  .keyidea h4 {
+    margin: 0 0 1.5mm;
+    font-size: 10.5pt;
+    color: var(--ink);
+  }
+  .keyidea h4 span {
+    display: inline-block;
+    width: 5.5mm; height: 5.5mm;
+    line-height: 5.5mm;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 8.5pt;
+    margin-right: 2mm;
+    vertical-align: 1px;
+  }
+  .keyidea > :last-child { margin-bottom: 0; }
+
+  .move {
+    padding-left: 5mm;
+    border-left: 2px solid var(--rule);
+    margin: 0 0 4mm;
+    page-break-inside: avoid;
+  }
+  .move h4 { margin-top: 0; color: var(--ink); font-size: 10.5pt; }
+  .move > :last-child { margin-bottom: 0; }
+
+  .qa { margin-bottom: 4mm; page-break-inside: avoid; }
+  .qa .q { font-weight: 650; margin-bottom: 1.5mm; }
+  .qa .q::before { content: "Q  "; color: var(--accent); font-weight: 700; }
+  .qa .a {
+    padding-left: 4mm;
+    border-left: 2px solid var(--rule);
+    color: var(--ink-soft);
+    font-size: 9.5pt;
+  }
+  .qa .a > :last-child { margin-bottom: 0; }
+
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li {
+    padding-left: 7mm;
+    position: relative;
+    margin-bottom: 2mm;
+  }
+  .checklist li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 1.1mm;
+    width: 3.6mm; height: 3.6mm;
+    border: 1.2px solid var(--ink-soft);
+    border-radius: 2px;
+  }
+
+  .closer {
+    border-top: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding: 5mm 0;
+    margin-top: 6mm;
+    font-size: 10.5pt;
+    page-break-inside: avoid;
+  }
+  .closer .label {
+    display: block;
+    font-size: 8pt;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 2mm;
+  }
+  .closer p:last-child { margin-bottom: 0; }
+
+  .footnote { font-size: 9pt; color: var(--ink-faint); }
+  .avoid { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+
+<section class="cover">
+  <div class="kicker">Internal briefing &middot; Technical walkthrough</div>
+  <h1>Mars Pharmacy ERP</h1>
+  <p class="sub">Project structure, database schema, and security model — a six-step walkthrough for presenting the system.</p>
+  <div class="rule"></div>
+
+  <div class="factgrid">
+    <div><b>36</b><span>tables</span></div>
+    <div><b>97</b><span>RLS policies</span></div>
+    <div><b>9</b><span>transactional RPCs</span></div>
+    <div><b>21</b><span>permissions &middot; 4 roles</span></div>
+    <div><b>17</b><span>ordered migrations</span></div>
+    <div><b>148</b><span>tests &middot; ~74 adversarial</span></div>
+  </div>
+
+  <div class="meta">
+    <strong>Platform</strong> &nbsp; Next.js 16 (App Router) &middot; React 19 &middot; Supabase / PostgreSQL 15<br>
+    <strong>Full reference</strong> &nbsp; <code>docs/SCHEMA.md</code><br>
+    <strong>Repository</strong> &nbsp; <code>d:\CRM</code> &middot; branch <code>master</code>
+  </div>
+</section>
+
+<!-- ============================ CONTENTS ============================ -->
+
+<section class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><span class="t">What this is, and the four ideas</span><span class="d">&nbsp;— the product, and the concepts everything else follows from</span></li>
+    <li><span class="t">The file map and the request flow</span><span class="d">&nbsp;— where each thing lives, end to end</span></li>
+    <li><span class="t">Schema A — entities, employees, roles, permissions</span><span class="d">&nbsp;— five tables, the whole access model</span></li>
+    <li><span class="t">Schema B — products, batches, documents, ledger</span><span class="d">&nbsp;— the operational heart</span></li>
+    <li><span class="t">The security model</span><span class="d">&nbsp;— five enforcement layers, all in Postgres</span></li>
+    <li><span class="t">Presentation script</span><span class="d">&nbsp;— running order, live demo, expected questions</span></li>
+  </ol>
+
+  <h2 style="margin-top:12mm">How to use this document</h2>
+  <p>Steps&nbsp;1–5 are the material. Step&nbsp;6 is the delivery plan: a timed running order, a five-move demo sequence, prepared answers to the hard questions, and a pre-flight checklist.</p>
+  <p>If the session is cut short, present <strong>the four ideas (Step&nbsp;1)</strong> and <strong>the demo (Step&nbsp;6)</strong> and drop the rest. Those two carry the argument on their own.</p>
+  <div class="callout">
+    <span class="label">Source of truth</span>
+    <p>Every figure in this document was read from <code>docs/SCHEMA.md</code>, which was generated from the live database, and from the source files cited throughout. Regenerate the DDL bundle with <code>npm run db:bundle</code>.</p>
+  </div>
+</section>
+
+<!-- ============================ STEP 1 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 1</div>
+  <h1 class="step-title">What this is, and the four ideas</h1>
+  <p class="step-lede">The product in one paragraph, then the four concepts that every table, policy and function in the system follows from.</p>
+
+  <h2>The product</h2>
+  <p><strong>Mars Pharmacy ERP</strong> — a multi-entity pharmacy ERP. Next.js 16 (App Router) on the front, Supabase / PostgreSQL 15 behind it.</p>
+  <p>&ldquo;Multi-entity&rdquo; is the core business framing: <strong>one entity = one independently operated pharmacy.</strong> Ten pharmacies share one installation and one database, but no pharmacy can see another's stock, sales, costs, or staff.</p>
+
+  <div class="callout warn">
+    <span class="label">The one naming inconsistency</span>
+    <p>The database column is <code>branch_id</code> everywhere; the UI labels it <em>Entity</em>. Remember that mapping — you will have to explain it if anyone reads the SQL alongside the screens.</p>
+  </div>
+
+  <p>Scale of what is built: <strong>36 tables, 2 views, 97 RLS policies, 9 transactional RPCs, 17 migrations.</strong></p>
+
+  <h2>The four load-bearing ideas</h2>
+  <p>If the audience remembers only four things, these are the four. Everything else in the schema is a consequence of them.</p>
+
+  <div class="keyidea">
+    <h4><span>1</span>Entity is the isolation boundary</h4>
+    <p>Every entity-owned table carries <code>branch_id NOT NULL</code>. Isolation is not enforced by careful queries in application code — it is enforced by row-level security in the database. Even if the app had a bug and asked for another pharmacy's rows, Postgres returns zero rows.</p>
+  </div>
+
+  <div class="keyidea">
+    <h4><span>2</span>Stock lives on batches, never on products</h4>
+    <p><code>products</code> is a catalogue — name, pack size, price. <strong>It has no quantity column.</strong> Physical stock lives in <code>product_batches</code>, where each row is one real lot with its own cost, its own expiry date and its own quantity.</p>
+    <p>This is non-negotiable for pharmacy: two boxes of the same medicine bought at different prices and expiring in different months are genuinely different things. Each batch also records which document created it (<code>source_type</code> / <code>source_id</code>), so any unit of stock traces back to its origin.</p>
+  </div>
+
+  <div class="keyidea">
+    <h4><span>3</span>The ledger is the truth</h4>
+    <p>Every single stock change appends a row to <code>stock_movements</code>, recording the <code>balance_after</code>. Nothing is ever updated or deleted there.</p>
+    <p>The invariant: <strong>summing the ledger for a batch equals that batch's <code>quantity_available</code></strong> — always. That is asserted in the test suite, so it is a checked claim, not an aspiration. When someone asks &ldquo;how do you know your stock numbers are right?&rdquo;, this is the answer.</p>
+  </div>
+
+  <div class="keyidea">
+    <h4><span>4</span>Documents go draft &rarr; confirmed</h4>
+    <p>A stock document (opening stock, inward, sale, return) is freely editable while <code>status = 'draft'</code>. <strong>Nothing moves stock while it is a draft.</strong></p>
+    <p>Confirming it calls a database function that, in one transaction, creates the batches, writes the ledger rows, and locks the document. After that it is immutable. So stock only ever moves through one narrow, audited, all-or-nothing door.</p>
+  </div>
+
+  <h2>How they fit together</h2>
+<pre class="diagram">                    ┌──────────────┐
+                    │   branches   │  ← the entity (isolation boundary)
+                    └──────┬───────┘
+                           │ branch_id on everything below
+      ┌────────────────────┼────────────────────┐
+      │                    │                    │
+ ┌────▼──────┐     ┌───────▼────────┐    ┌──────▼──────┐
+ │  products │◀────│ product_batches│───▶│  suppliers  │
+ │(catalogue)│     │  (real stock)  │    └─────────────┘
+ └────┬──────┘     └───────┬────────┘
+      │                    │
+      │            ┌───────▼─────────┐
+      │            │ stock_movements │  ← append-only ledger
+      │            └───────▲─────────┘
+      │                    │
+   ┌──┴────────────────────┴───────────────────────────┐
+   │  opening_stock_entries · stock_inwards · sales    │  ← documents
+   │  returns · received_orders · stock_transfers      │    (draft → confirmed)
+   └───────────────────────────────────────────────────┘</pre>
+
+  <p>Read it top-down: the entity owns everything. Products and suppliers are reference data. Batches are the real stock. Documents are the events that create or consume batches. The ledger records every one of those events.</p>
+</section>
+
+<!-- ============================ STEP 2 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 2</div>
+  <h1 class="step-title">The file map and the request flow</h1>
+  <p class="step-lede">Three route entry points, four layers, and one function that answers &ldquo;who is this and what may they see&rdquo; for every screen in the application.</p>
+
+  <h2>The shape of the app</h2>
+  <p>Only <strong>three</strong> route entry points exist. That surprises people, so lead with it.</p>
+
+  <table>
+    <thead><tr><th style="width:22%">Route</th><th style="width:40%">File</th><th>What it serves</th></tr></thead>
+    <tbody>
+      <tr><td><code>/login</code></td><td><code>src/app/login/page.tsx</code></td><td>Sign-in</td></tr>
+      <tr><td><code>/dashboard/*</code></td><td><code>src/app/dashboard/[[...section]]/page.tsx</code></td><td><strong>All 24 screens</strong></td></tr>
+      <tr><td><code>/api/*</code></td><td><code>src/app/api/</code></td><td>3 routes: AI chat, import template download, report export</td></tr>
+    </tbody>
+  </table>
+
+  <p>That <code>[[...section]]</code> is an <strong>optional catch-all</strong> route. <code>/dashboard/sales</code>, <code>/dashboard/inventory</code>, <code>/dashboard/reports</code> — all one file. It reads the section name from the URL and dispatches.</p>
+  <p>So there is one place where auth, permissions and entity context get resolved, instead of 24 places that each might forget.</p>
+
+  <h2>The four layers</h2>
+<pre>  src/app/dashboard/views/          29 files   ← what it looks like (client)
+  src/app/dashboard/actions/        19 files   ← writes  (server actions)
+  src/lib/data/                     25 files   ← reads   (loaders)
+  src/lib/  +  supabase/migrations/            ← rules   (shared logic + DB)</pre>
+
+  <div class="callout">
+    <span class="label">The discipline</span>
+    <p><strong>Views never touch the database.</strong> Reads go through <code>lib/data/</code>, writes go through <code>actions/</code>. A view receives data as props and calls an action on submit. That is the whole rule.</p>
+  </div>
+
+  <h2>The flow — reading a screen</h2>
+  <p>Someone opens <code>/dashboard/sales-history</code>:</p>
+<pre>1. proxy.ts                        refresh the session cookie
+2. page.tsx   requireUser()        who is this? → redirect to /login if nobody
+3. page.tsx   permittedSections()  may they see this section? → redirect if not
+4. lib/data/sales.ts  getScope()   which entity? what may they see?
+5. supabase.from("sales")…         Postgres applies RLS
+6. AppShell → sales-history-view.tsx   render</pre>
+
+  <p><strong>Step 4 is the one worth dwelling on.</strong> <code>getScope()</code> in <code>src/lib/data/scope.ts</code> is called by every single loader and returns one bundle:</p>
+<pre><code>{ supabase, employee, entityId, entityName, currency,
+  canViewCost, canViewProfit, canViewReports, canExport }</code></pre>
+  <p>So &ldquo;which pharmacy am I looking at&rdquo; and &ldquo;am I allowed to see cost and profit&rdquo; are answered once, in one function, for all 25 loaders. No loader improvises.</p>
+
+  <h2>The flow — writing (completing a sale)</h2>
+<pre>1. sales-view.tsx      calls completeSale(…)
+2. actions/sales.ts    requireUser()
+3.                     permissionError(employee, "create_sales")   ← gate
+4.                     supabase.rpc("erp_complete_sale", {…})      ← one DB call
+5.                     revalidatePath(…) × 5                       ← refresh screens</pre>
+
+  <p>Every write action is that same five-line skeleton. And note <strong>step 4</strong>: the action does not insert a sale row, then decrement batches, then write ledger rows. It makes <strong>one call</strong> to a database function that does all of it in one transaction.</p>
+  <p>That is the draft&rarr;confirmed idea from Step&nbsp;1 showing up in the code — the app cannot half-complete a sale, because it does not have the ability to do the pieces separately.</p>
+
+  <h2>The shared-rules files in <code>src/lib/</code></h2>
+  <p>These are the ones to actually open if someone asks a hard question.</p>
+
+  <table>
+    <thead><tr><th style="width:34%">File</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td><code>dal.ts</code></td><td><em>Who is the user.</em> Loads the employee, resolves permissions, <code>requireUser()</code> / <code>requirePermission()</code>. <strong>Every request starts here.</strong></td></tr>
+      <tr><td><code>permissions.ts</code></td><td>The 21-permission vocabulary + <code>resolvePermissions()</code> — role defaults, then per-user overrides on top</td></tr>
+      <tr><td><code>entity.ts</code></td><td>Which entity is active (cookie-driven), and who is allowed to switch</td></tr>
+      <tr><td><code>data/scope.ts</code></td><td>The per-request bundle above</td></tr>
+      <tr><td><code>pricing.ts</code></td><td>Margin / discount maths — pure, so it is unit-tested</td></tr>
+      <tr><td><code>data/costs.ts</code></td><td>Cost visibility — the <code>view_purchase_cost</code> gate</td></tr>
+    </tbody>
+  </table>
+
+  <p><code>dal.ts</code> and <code>entity.ts</code> are wrapped in React's <code>cache()</code>, so ten loaders on one page share <strong>one</strong> &ldquo;who is this user&rdquo; query rather than ten.</p>
+
+  <h2>Two Next.js 16 details to have ready</h2>
+  <p>Both will be asked if anyone technical is in the room.</p>
+  <ul>
+    <li><strong><code>proxy.ts</code> at the repo root</strong> — in Next.js 16 this file is what used to be <code>middleware.ts</code>. Same job (session refresh on every request), new name.</li>
+    <li><strong><code>params</code> and <code>searchParams</code> are Promises</strong> — you <code>await</code> them.</li>
+  </ul>
+
+  <h2>Everything else</h2>
+  <table class="tight">
+    <thead><tr><th style="width:34%">Folder</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td><code>supabase/migrations/</code></td><td>17 numbered migrations — <strong>order is load-bearing</strong> (see Step 5)</td></tr>
+      <tr><td><code>tests/</code></td><td>Unit tests + real-database RLS tests</td></tr>
+      <tr><td><code>src/lib/ai/</code></td><td>Embeddings + the Ask-AI assistant (the only part needing <code>OPENAI_API_KEY</code>)</td></tr>
+      <tr><td><code>src/lib/imports/</code>, <code>src/lib/reports/</code></td><td>Excel product import; report definitions</td></tr>
+      <tr><td><code>docs/SCHEMA.md</code></td><td>The full reference this walkthrough is drawn from</td></tr>
+    </tbody>
+  </table>
+
+  <div class="closer">
+    <span class="label">One-sentence version</span>
+    <p>One route serves every screen; reads flow through loaders that all share one scope function, writes flow through actions that each call one transactional database function, and the database enforces isolation regardless of what the app does.</p>
+  </div>
+</section>
+
+<!-- ============================ STEP 3 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 3 &middot; Schema A</div>
+  <h1 class="step-title">Entities, employees, roles, permissions</h1>
+  <p class="step-lede">Five tables. That is the whole access-control model — understand these and you can answer any &ldquo;who can do what&rdquo; question.</p>
+
+<pre class="diagram">  branches  ─────────┐
+   (entity)          │ branch_id = home entity
+                     │
+  employees ─────────┤
+       │             └─── employee_entities   (extra entities, many-to-many)
+       │ role
+       ▼
+  role_permissions        (role → permissions, the template)
+       +
+  employees.permission_overrides   (per-person tweaks)
+       ↓  filtered by
+  permission_catalog      (which permissions may be tweaked at all)</pre>
+
+  <h2>1. <code>branches</code> — the entity</h2>
+  <p>One row = one pharmacy.</p>
+  <table class="tight">
+    <thead><tr><th style="width:30%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>uuid PK</td></tr>
+      <tr><td><code>code</code></td><td><strong>UNIQUE</strong> — e.g. <code>ENT-001</code></td></tr>
+      <tr><td><code>name</code>, <code>registered_name</code>, <code>phone</code>, <code>email</code>, <code>address</code>, <code>location</code>, <code>manager_name</code></td><td>text</td></tr>
+      <tr><td><code>currency</code></td><td>default <code>TZS</code></td></tr>
+      <tr><td><code>timezone</code></td><td>default <code>Africa/Dar_es_Salaam</code></td></tr>
+      <tr><td><code>is_active</code></td><td>default <code>true</code></td></tr>
+    </tbody>
+  </table>
+  <p>Per-entity currency and timezone matter — the same installation can run pharmacies in different countries, and each one's reports come out in its own currency.</p>
+
+  <h2>2. <code>employees</code> — the person</h2>
+  <table class="tight">
+    <thead><tr><th style="width:30%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>auth_user_id</code></td><td>&rarr; <code>auth.users</code>, <strong>UNIQUE</strong> — one login &harr; one employee</td></tr>
+      <tr><td><code>full_name</code>, <code>username</code>, <code>email</code></td><td>text</td></tr>
+      <tr><td><code>role</code></td><td><code>master_admin</code> / <code>entity_admin</code> / <code>inventory_user</code> / <code>sales_user</code></td></tr>
+      <tr><td><code>branch_id</code></td><td>home entity. <strong>NULL only for master admins</strong></td></tr>
+      <tr><td><code>permission_overrides</code></td><td>jsonb <code>{"&lt;permission&gt;": true|false}</code>, default <code>{}</code></td></tr>
+      <tr><td><code>max_discount_percent</code></td><td>this person's discount ceiling</td></tr>
+      <tr><td><code>approval_limit</code></td><td>numeric</td></tr>
+      <tr><td><code>status</code></td><td><code>active</code> / <code>disabled</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>Two things to point out:</p>
+  <ul>
+    <li><strong>Login and employee are separate.</strong> Supabase Auth holds the password; <code>employees</code> holds the business identity. <code>auth_user_id</code> joins them. A disabled employee can still authenticate but gets nothing — the DAL rejects any status other than <code>active</code>.</li>
+    <li><strong><code>max_discount_percent</code> is per-person, not per-role.</strong> So a senior cashier can be trusted with 15% while a new one gets 5%, without inventing new roles.</li>
+  </ul>
+
+  <h2>3. The four roles</h2>
+  <table>
+    <thead><tr><th style="width:26%">Role</th><th>In one line</th></tr></thead>
+    <tbody>
+      <tr><td><strong>master_admin</strong></td><td>Owns the whole installation. Sees all entities. The only role that can create entities.</td></tr>
+      <tr><td><strong>entity_admin</strong></td><td>Owns one pharmacy completely. Cannot create entities or reach other ones.</td></tr>
+      <tr><td><strong>inventory_user</strong></td><td>Buys and stocks. Products, suppliers, inward, stock-out. <strong>Cannot sell.</strong></td></tr>
+      <tr><td><strong>sales_user</strong></td><td>Dispenses at the counter. <strong>Cannot see purchase cost or profit.</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <span class="label">The two commercially important separations</span>
+    <p>The person at the counter <strong>cannot see what you paid</strong> for the medicine or what you make on it.</p>
+    <p>The person who buys stock <strong>cannot ring up sales</strong>, so nobody controls both sides of a transaction.</p>
+  </div>
+
+  <h2>4. Where permissions live</h2>
+  <p>Three pieces, and the layering is the point.</p>
+
+  <h3><code>role_permissions</code> — the template</h3>
+  <p><code>(role, permission)</code> composite PK, <strong>53 rows</strong> = 4 roles &times; their permissions. Seeded in migration <code>0006</code>, and it is the <em>runtime</em> source of truth — not a constant in the code.</p>
+
+  <h3><code>employees.permission_overrides</code> — the exceptions</h3>
+  <p>Per-person adjustments on top. <code>{"apply_discount": true}</code> grants it; <code>{"view_profit": false}</code> revokes it. So you rarely need to invent a new role: you take the nearest one and adjust.</p>
+
+  <h3><code>permission_catalog</code> — what may be adjusted at all</h3>
+  <p><code>permission</code> PK, <code>overridable</code> bool, all 21 permissions. Three are <code>overridable = false</code>:</p>
+<pre>manage_users  ·  manage_entities  ·  access_multiple_entities</pre>
+
+  <div class="callout warn">
+    <span class="label">Why this table exists</span>
+    <p><strong>These three are role-only, never grantable by override.</strong> Without this, anyone holding <code>manage_users</code> could hand themselves — or a colleague — master-level reach by writing one JSON key. That is the classic privilege-escalation hole, closed by data rather than by code review.</p>
+  </div>
+
+  <h3><code>employee_entities</code> — extra access</h3>
+  <p><code>(employee_id, branch_id)</code> composite PK. Grants a person access beyond their home entity. Master admins need no rows here; they see everything by role.</p>
+
+  <h2>5. The 21 permissions</h2>
+  <table>
+    <thead><tr><th style="width:22%">Group</th><th>Permissions</th></tr></thead>
+    <tbody>
+      <tr><td>Products</td><td><code>view_products</code> <code>create_products</code> <code>edit_products</code> <code>import_products</code></td></tr>
+      <tr><td>Inventory</td><td><code>view_inventory</code> <code>adjust_inventory</code> <code>create_stock_inward</code> <code>create_stock_outward</code> <code>approve_stock_outward</code></td></tr>
+      <tr><td>Purchasing</td><td><code>view_purchase_cost</code> <code>manage_suppliers</code></td></tr>
+      <tr><td>Sales</td><td><code>create_sales</code> <code>apply_discount</code> <code>cancel_sales</code></td></tr>
+      <tr><td>Management</td><td><code>view_profit</code> <code>view_management_reports</code> <code>generate_exports</code></td></tr>
+      <tr><td>Administration</td><td><code>manage_users</code>* <code>manage_entities</code>* <code>manage_settings</code> <code>access_multiple_entities</code>*</td></tr>
+    </tbody>
+  </table>
+  <p class="footnote">* the three non-overridable, master-tier permissions.</p>
+
+  <h2>6. The role matrix</h2>
+  <p>The four rows worth reading aloud are in bold.</p>
+  <table class="matrix">
+    <thead><tr>
+      <th>Permission</th><th class="c">master</th><th class="c">entity_admin</th><th class="c">inventory</th><th class="c">sales</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>view_products</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>create / edit / import products</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+      <tr><td>view_inventory</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>adjust_inventory</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td>create_stock_inward</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+      <tr><td>create_stock_outward</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+      <tr><td>approve_stock_outward</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td><strong>view_purchase_cost</strong></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no"><strong>—</strong></td></tr>
+      <tr><td>manage_suppliers</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+      <tr><td><strong>create_sales</strong></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no"><strong>—</strong></td><td class="c yes">✓</td></tr>
+      <tr><td>apply_discount</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      <tr><td>cancel_sales</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td><strong>view_profit</strong></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no"><strong>—</strong></td></tr>
+      <tr><td>view_management_reports</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td>manage_users</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td><strong>manage_entities</strong></td><td class="c yes">✓</td><td class="c no"><strong>—</strong></td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td>manage_settings</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td><strong>access_multiple_entities</strong></td><td class="c yes">✓</td><td class="c no"><strong>—</strong></td><td class="c no">—</td><td class="c no">—</td></tr>
+      <tr><td>generate_exports</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+    </tbody>
+  </table>
+
+  <p>Note <code>create_stock_outward</code> versus <code>approve_stock_outward</code>: an inventory user can <em>raise</em> a write-off, but only an admin can <em>approve</em> it. Stock does not leave on one person's say-so.</p>
+
+  <h2>7. How a permission check resolves</h2>
+  <p><strong>The rule:</strong> role template first, then overrides on top — <em>but</em> overrides are ignored for the three non-overridable permissions.</p>
+  <p>That rule is implemented <strong>twice, deliberately</strong>:</p>
+  <ul>
+    <li>In TypeScript — <code>resolvePermissions()</code> in <code>src/lib/permissions.ts</code>, which decides what the UI renders and what actions accept.</li>
+    <li>In SQL — <code>has_perm(text)</code>, which every one of the 97 RLS policies calls.</li>
+  </ul>
+  <p>They are not duplicated by accident. The TypeScript copy gives a clean UI and a friendly error message; the SQL copy is the one that actually protects the data. If someone bypassed the app entirely and hit the API directly, <code>has_perm</code> still runs.</p>
+  <p>And there is a third guard: the <code>employees_guard</code> trigger <strong>rejects</strong> a non-overridable override at write time, on every path — <em>including the service-role key that bypasses RLS.</em> So a bad override cannot be stored, cannot be read, and would not work if it somehow existed.</p>
+
+  <div class="closer">
+    <span class="label">One-sentence version</span>
+    <p>Four roles give you the defaults, per-person overrides handle the exceptions, three master-tier permissions are locked out of the override mechanism entirely, and the same resolution rule is enforced independently in the app and in the database.</p>
+  </div>
+</section>
+
+<!-- ============================ STEP 4 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 4 &middot; Schema B</div>
+  <h1 class="step-title">Products, batches, documents, the ledger</h1>
+  <p class="step-lede">The operational heart of the system. Everything here exists to make one claim true — and the claim is at the end of this step.</p>
+
+<pre class="diagram">   products          catalogue — no quantity, ever
+      │
+      ▼
+   product_batches   the real stock: one lot, one cost, one expiry
+      ▲     ▲
+      │     └──────────── documents CONSUME batches (sales, returns)
+      │
+   documents CREATE batches (opening stock, inward, GRN)
+      │
+      ▼
+   stock_movements   append-only ledger — every change, with balance_after</pre>
+
+  <h2>1. <code>products</code> — the catalogue</h2>
+  <table class="tight">
+    <thead><tr><th style="width:32%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>sku</code></td><td><strong>UNIQUE (branch_id, sku)</strong> — per entity, <em>not</em> global</td></tr>
+      <tr><td><code>name</code>, <code>generic_name</code>, <code>strength</code>, <code>form</code>, <code>unit</code>, <code>barcode</code>, <code>manufacturer</code></td><td>text</td></tr>
+      <tr><td><code>category_id</code>, <code>supplier_id</code></td><td>uuid FK</td></tr>
+      <tr><td><code>buy_price</code></td><td><span class="lock">LOCKED</span> <strong>SELECT revoked from <code>authenticated</code></strong></td></tr>
+      <tr><td><code>sell_price</code></td><td>numeric</td></tr>
+      <tr><td><code>pricing_method</code></td><td><code>fixed</code> | <code>cost_plus_margin</code></td></tr>
+      <tr><td><code>margin_percent</code></td><td>used when <code>cost_plus_margin</code></td></tr>
+      <tr><td><code>max_discount_percent</code></td><td>per-<strong>product</strong> ceiling</td></tr>
+      <tr><td><code>reorder_level</code> / <code>restock_target</code></td><td>when to reorder / reorder up to</td></tr>
+      <tr><td><code>status</code></td><td><code>active</code> | <code>discontinued</code> | <code>quarantined</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>Three things to flag:</p>
+  <ul>
+    <li><strong>No quantity column.</strong> Deliberate. Stock is never on the product.</li>
+    <li><strong>SKUs are unique per entity.</strong> Two pharmacies can both use <code>PARA-500</code> for their own products without collision.</li>
+    <li><strong><code>buy_price</code> has <code>SELECT</code> revoked at the database level.</strong> Not hidden by a query — <em>revoked</em>. A sales user's connection cannot read that column at all.</li>
+  </ul>
+
+  <div class="callout">
+    <span class="label">Two discount ceilings</span>
+    <p><code>products.max_discount_percent</code> (this medicine) and <code>employees.max_discount_percent</code> (this cashier). A sale must satisfy <strong>both</strong> — checked inside <code>erp_complete_sale</code>, not in the browser.</p>
+  </div>
+
+  <p><strong><code>product_price_history</code></strong> logs every change to <code>buy_price</code>, <code>sell_price</code>, <code>margin_percent</code>, <code>pricing_method</code> and <code>max_discount_percent</code> — with old value, new value, who, and why. Rows where <code>field = 'buy_price'</code> require <code>view_purchase_cost</code> to read.</p>
+
+  <h2>2. <code>product_batches</code> — the real stock</h2>
+  <table class="tight">
+    <thead><tr><th style="width:32%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>product_id</code>, <code>branch_id</code></td><td>uuid NOT NULL</td></tr>
+      <tr><td><code>batch_number</code></td><td>text NOT NULL</td></tr>
+      <tr><td><code>supplier_id</code></td><td>uuid FK</td></tr>
+      <tr><td><code>quantity_received</code></td><td>as delivered</td></tr>
+      <tr><td><code>quantity_available</code></td><td><span class="lock">LOCKED</span> <strong>UPDATE revoked</strong> — ledger-derived</td></tr>
+      <tr><td><code>unit_cost</code></td><td><span class="lock">LOCKED</span> <strong>SELECT revoked from <code>authenticated</code></strong></td></tr>
+      <tr><td><code>expiry_date</code>, <code>storage_location</code></td><td>date, text</td></tr>
+      <tr><td><code>status</code></td><td><code>active</code> | <code>quarantined</code> | <code>damaged</code> | <code>expired</code> | <code>negative</code></td></tr>
+      <tr><td><code>source_type</code> / <code>source_id</code></td><td>the document that created this batch</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <span class="label">The most important revocation in the schema</span>
+    <p><strong><code>quantity_available</code> has UPDATE revoked.</strong> Nobody — no user, no app code, no admin screen — can write a number into that column. It only moves when a ledger row is posted. That single revocation is what makes &ldquo;the ledger is the truth&rdquo; a structural fact rather than a convention.</p>
+  </div>
+
+  <p><code>source_type</code> / <code>source_id</code> give full traceability: any batch on the shelf points back to the document that brought it in. Pharmacy regulators ask for exactly this.</p>
+
+  <h2>3. Stock IN — three doors, all draft &rarr; confirm</h2>
+
+  <h3>A. <code>opening_stock_entries</code> &rarr; <code>opening_stock_items</code></h3>
+  <p>Day-one stock when a pharmacy joins the system. Line carries <code>product_id</code>, <code>batch_number</code>, <code>expiry_date</code>, <code>quantity</code> (CHECK &gt; 0), <code>unit_cost</code>, optional <code>sell_price</code>.</p>
+  <p><strong>Confirm:</strong> <code>erp_confirm_opening_stock(id)</code> &rarr; one batch per line, posts <code>opening_stock</code> movements, locks the entry.</p>
+
+  <h3>B. <code>stock_inwards</code> &rarr; <code>stock_inward_items</code></h3>
+  <p>Routine goods receipt. Four <code>inward_type</code> values:</p>
+<pre>purchase_from_parent · purchase_from_external · foc_or_sample · replacement_in</pre>
+  <p>Each line has both <code>quantity</code> <em>and</em> <code>free_quantity</code> — paid units and free units on the same line, with <code>CHECK (quantity + free_quantity &gt; 0)</code>.</p>
+  <p><strong>Confirm:</strong> <code>erp_confirm_stock_inward(id)</code>. <strong>Paid units post as <code>purchase</code>; free units post as a separate <code>foc</code> movement.</strong></p>
+
+  <div class="callout">
+    <span class="label">A differentiator worth naming</span>
+    <p>Free goods stay identifiable in the ledger forever — so you can answer &ldquo;how much of our margin came from free stock?&rdquo; That is a real pharmacy-distribution question and most systems cannot answer it.</p>
+  </div>
+
+  <p>Also: <code>UNIQUE (branch, supplier, invoice_number)</code> while not cancelled — the same supplier invoice cannot be received twice.</p>
+
+  <h3>C. <code>purchase_orders</code> &rarr; <code>received_orders</code></h3>
+  <p>The formal PO path.</p>
+<pre>PO status:  draft → pending_approval → approved → partially_received
+            → received | cancelled</pre>
+  <p>The GRN (<code>received_orders</code>) carries <code>quantity_ordered</code>, <code>quantity_received</code> and <code>damaged_qty</code> per line, with status <code>partial</code> | <code>complete</code> | <code>variance</code>.</p>
+  <p><strong>Receive:</strong> <code>erp_receive_purchase_order(po_id, supplier_invoice, lines)</code>.</p>
+
+  <h2>4. Stock OUT</h2>
+
+  <h3><code>sales</code> &rarr; <code>sale_items</code></h3>
+  <table class="tight">
+    <thead><tr><th style="width:32%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>invoice_number</code></td><td>UNIQUE</td></tr>
+      <tr><td><code>customer_id</code>, <code>cashier_id</code></td><td>uuid FK</td></tr>
+      <tr><td><code>payment_method</code></td><td><code>Cash</code> | <code>Bank</code> | <code>M-Pesa</code> | <code>Selcom</code> | <code>Credit</code></td></tr>
+      <tr><td><code>subtotal</code>, <code>discount</code>, <code>tax</code>, <code>total</code></td><td><strong>always derived server-side</strong></td></tr>
+      <tr><td><code>status</code></td><td><code>completed</code> | <code>returned</code> | <code>reversed</code></td></tr>
+      <tr><td><code>request_key</code></td><td><strong>UNIQUE (branch_id, request_key)</strong> — idempotency</td></tr>
+    </tbody>
+  </table>
+
+  <ul>
+    <li><strong>Money is never trusted from the browser.</strong> The client sends product ids and quantities; <code>erp_complete_sale</code> computes every figure from the database. A tampered request cannot change a price.</li>
+    <li><strong><code>request_key</code> is a double-click guard.</strong> Same key twice = the original sale returned, not a second one. Enforced by a unique index, so it holds even under a race.</li>
+    <li><strong><code>sale_items</code> is immutable</strong> — no UPDATE or DELETE policy exists.</li>
+  </ul>
+
+  <p>Cancelling a sale calls <code>erp_reverse_sale(sale_id, reason)</code>, which <strong>never deletes</strong>. It posts <code>sale_reversal</code> movements and stamps <code>reversed_by</code> / <code>reversed_at</code> / <code>reversal_reason</code>. Nothing disappears from the record.</p>
+
+  <h3><code>returns</code> — one table for every stock-out document</h3>
+  <table>
+    <thead><tr><th style="width:30%"><code>type</code></th><th style="width:44%">Real-world event</th><th>Stock effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>customer</code></td><td>customer brings it back</td><td><strong>+ back in</strong></td></tr>
+      <tr><td><code>supplier</code></td><td>send it back to the supplier</td><td>&minus; out</td></tr>
+      <tr><td><code>damaged</code></td><td>broken</td><td>&minus; out</td></tr>
+      <tr><td><code>expired</code></td><td>past expiry</td><td>&minus; out</td></tr>
+      <tr><td><code>employee_consumption</code></td><td>staff used it</td><td>&minus; out</td></tr>
+    </tbody>
+  </table>
+  <p>Status: <code>pending</code> &rarr; <code>approved</code> | <code>review</code> | <code>rejected</code> | <code>completed</code>. Approve with <code>erp_approve_stock_out(return_id)</code> — which needs <code>approve_stock_outward</code>, a permission inventory users do not have.</p>
+  <p><strong>Why one table:</strong> all five are &ldquo;stock leaves or returns with a documented reason and a named approver.&rdquo; So they share one approval flow, one audit trail, one screen — and the <code>type</code> column keeps them distinct in the ledger.</p>
+
+  <h3><code>stock_transfers</code></h3>
+  <p>Move a batch between entities. <code>erp_transfer_stock(batch_id, to_branch, quantity)</code> posts <strong>both</strong> <code>transfer_out</code> and <code>transfer_in</code> legs atomically. Never one without the other.</p>
+
+  <h2>5. <code>stock_movements</code> — the ledger</h2>
+  <table class="tight">
+    <thead><tr><th style="width:38%">Column</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>product_id</code>, <code>batch_id</code>, <code>branch_id</code></td><td>uuid</td></tr>
+      <tr><td><code>movement_type</code></td><td>13 types</td></tr>
+      <tr><td><code>quantity_delta</code></td><td><strong>signed</strong></td></tr>
+      <tr><td><code>balance_after</code></td><td>running balance for that batch</td></tr>
+      <tr><td><code>reference_type</code> / <code>reference_id</code> / <code>reference_number</code></td><td>back-link to the source document</td></tr>
+      <tr><td><code>reason</code>, <code>created_by</code>, <code>created_at</code></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <span class="label">Locked down</span>
+    <p><strong>SELECT only.</strong> No INSERT / UPDATE / DELETE policy <em>and</em> the privileges are revoked from <code>authenticated</code>. There is exactly <strong>one writer</strong>: <code>fn_post_movement</code>, which is revoked from every client role and callable only from inside an <code>erp_*</code> RPC.</p>
+    <p>So the ledger cannot be written by the app, by a user, or by an admin screen. Only by a database function reached through one of the nine transactional RPCs.</p>
+  </div>
+
+  <h3>The stock equation</h3>
+<pre>closing stock = opening_stock
+              + purchase + foc + replacement_in + transfer_in
+              − sale − employee_consumption − expiry − damage
+              − supplier_return − transfer_out
+              + sale_reversal
+              ± stock_correction</pre>
+
+  <p><strong>And it is tested.</strong> The suite asserts the ledger sums exactly to <code>product_batches.quantity_available</code>, and that <code>balance_after</code> forms an unbroken chain. If anything ever broke the invariant, the tests fail.</p>
+
+  <h3>Movement types</h3>
+  <table class="tight">
+    <thead><tr><th style="width:62%">Phase 1 vocabulary</th><th>Legacy (pre-existing rows)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>opening_stock</code> <code>purchase</code> <code>foc</code> <code>replacement_in</code> <code>sale</code> <code>employee_consumption</code> <code>expiry</code> <code>damage</code> <code>supplier_return</code> <code>sale_reversal</code> <code>stock_correction</code> <code>transfer_in</code> <code>transfer_out</code></td>
+        <td><code>purchase_receipt</code> <code>adjustment</code> <code>return</code> <code>disposal</code> <code>count_correction</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Supporting tables</h2>
+  <table class="tight">
+    <thead><tr><th style="width:30%">Table</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>customers</code></td><td><code>name</code>, <code>phone</code>, <code>segment</code>, <code>loyalty_points</code>, <code>credit_balance</code></td></tr>
+      <tr><td><code>expenses</code></td><td><code>reference</code> UNIQUE, <code>category_id</code>, <code>vendor</code>, <code>amount</code>, <code>status</code></td></tr>
+      <tr><td><code>audit_logs</code></td><td><code>employee_id</code>, <code>action</code>, <code>module</code>, <code>previous_value</code>, <code>new_value</code>, <code>reason</code></td></tr>
+      <tr><td><code>login_history</code></td><td><code>device</code>, <code>ip_address</code>, <code>session_ref</code>, <code>status</code></td></tr>
+      <tr><td><code>notifications</code></td><td><code>branch_id</code> NULL = global</td></tr>
+      <tr><td><code>settings</code></td><td><code>branch_id</code> NULL = global, <strong>UNIQUE (branch_id, key)</strong></td></tr>
+      <tr><td><code>approval_tasks</code></td><td><code>type</code>, <code>reference_id</code>, <code>requested_by</code>, <code>amount</code>, <code>status</code></td></tr>
+      <tr><td><code>stock_counts</code> / <code>stock_count_items</code></td><td>Physical count sheets; <code>variance</code> is a generated column</td></tr>
+      <tr><td><code>document_embeddings</code></td><td>AI retrieval — <code>embedding vector</code>, entity-scoped</td></tr>
+      <tr><td><code>product_imports</code> / <code>draft_products</code></td><td>Import staging — see below</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Imports never create sellable products directly</h3>
+  <p>Rows land in <code>draft_products</code> as <code>pending</code> and become real products only when a user with <code>create_products</code> confirms them. <code>product_imports</code> carries <strong>UNIQUE (branch_id, kind, file_hash)</strong> — the same file cannot be imported twice into one entity, whatever it is renamed to.</p>
+  <p>Limits: 5&nbsp;MB, 5&nbsp;000 rows, <code>.xlsx</code> / <code>.csv</code> only. Rows are re-validated and sell price recomputed at commit, because the payload round-trips through the browser.</p>
+
+  <h3>Document numbering</h3>
+  <p>Six sequences — <code>doc_seq_sale</code>, <code>doc_seq_inward</code>, <code>doc_seq_opening</code>, <code>doc_seq_return</code>, <code>doc_seq_correction</code>, <code>doc_seq_import</code> — issued by <code>next_doc_number(prefix, seq)</code> &rarr; <code>INV-2026-000123</code>. Collision-proof under concurrency.</p>
+
+  <div class="closer">
+    <span class="label">The claim this all buys you</span>
+    <p>For any unit of stock, you can answer: <strong>where did it come from, what did it cost, when does it expire, who touched it, and where did it go</strong> — and the numbers are arithmetically guaranteed to reconcile.</p>
+    <p>That is the sentence to say out loud. Everything in this step exists to make it true.</p>
+  </div>
+</section>
+
+<!-- ============================ STEP 5 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 5</div>
+  <h1 class="step-title">The security model</h1>
+  <p class="step-lede">Five enforcement layers, every one of them inside PostgreSQL. The application layer is for user experience, not for defence.</p>
+
+  <h2>Start with the threat model</h2>
+  <div class="callout risk">
+    <span class="label">Say this first</span>
+    <p><strong>The browser holds the anon key and the user's JWT. So nothing in the client is a security control.</strong></p>
+  </div>
+
+  <p>It is the sentence that makes the rest make sense. Anyone with devtools can read the anon key out of the page and hit the Supabase REST API directly — skipping the login page, the React code, the server actions, all of it.</p>
+  <p>So the question is never &ldquo;does the UI hide it?&rdquo; It is: <strong>what happens when someone talks straight to the database?</strong></p>
+
+<pre class="diagram">Browser (hostile)  ──▶  Server Actions        ──┐
+                   ──▶  Direct PostgREST      ──┤  ← the real threat model
+                                                ▼
+   LAYER 1  Column privileges    buy_price / unit_cost not selectable
+   LAYER 2  RLS · 97 policies    has_entity_access() AND has_perm()
+   LAYER 3  Permission resolution   role + overrides + catalogue
+   LAYER 4  Transactional RPCs   permission → entity → consistency → lock
+   TRIGGERS  fire on every path, service role included</pre>
+
+  <h2>Layer 1 — Column privileges</h2>
+  <p>The strongest thing available, and used in exactly three places.</p>
+  <table>
+    <thead><tr><th style="width:48%">Target</th><th>Revoked</th></tr></thead>
+    <tbody>
+      <tr><td><code>products.buy_price</code></td><td><strong>SELECT</strong> from <code>authenticated</code></td></tr>
+      <tr><td><code>product_batches.unit_cost</code></td><td><strong>SELECT</strong> from <code>authenticated</code></td></tr>
+      <tr><td><code>product_batches.quantity_available</code></td><td><strong>UPDATE</strong> from <code>authenticated</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>This is stronger than a policy. A policy filters <em>rows</em>; this removes the <em>column</em> from the role's reach. A sales user asking for <code>buy_price</code> does not get null — they get an error, because that column is not theirs to name.</p>
+  <p>Cost is reachable only through two views:</p>
+<pre><code>create view product_costs with (security_invoker = false) as
+select p.id as product_id, p.branch_id, p.buy_price
+from products p
+where has_entity_access(p.branch_id)
+  and has_perm('view_purchase_cost');</code></pre>
+  <p><code>batch_costs</code> is the same shape for <code>unit_cost</code>. <strong>Without the permission you get zero rows</strong> — not a nulled column, not a masked value. The data does not exist for you.</p>
+
+  <div class="callout">
+    <span class="label">Maintenance note</span>
+    <p>Column privileges are role-wide, so the pattern is <em>revoke table SELECT, then grant back the permitted columns</em>. <code>fn_grant_readable_columns(table, exclude[])</code> does that, and must be re-run whenever a column is added to either table.</p>
+  </div>
+
+  <h2>Layer 2 — Row-level security</h2>
+  <p><strong>Enabled on 36 / 36 tables. 97 policies. No exceptions.</strong></p>
+  <p>Every policy composes the same two functions:</p>
+<pre>has_entity_access(branch_id)   AND   has_perm('view_inventory')
+       ↑                                    ↑
+   which pharmacy?                    which capability?</pre>
+
+  <p>Two tables are SELECT-only by design: <code>stock_movements</code> (the ledger) and <code>document_embeddings</code>.</p>
+  <p><code>has_entity_access(uuid)</code> is true for a master admin, or when the branch is the employee's own, or when it is granted via <code>employee_entities</code>. And one detail worth stating: <strong><code>has_entity_access(NULL)</code> returns false.</strong> Null is not a wildcard. A row with no entity is invisible to everyone rather than visible to everyone — that was a real finding, fixed in migration <code>0017</code>.</p>
+
+  <h2>Layer 3 — Permission resolution</h2>
+  <p><code>has_perm(text)</code> is the SQL half of what Step&nbsp;3 described:</p>
+<pre><code>select case
+  when e.permission_overrides ? p
+   and coalesce((select pc.overridable from permission_catalog pc
+                 where pc.permission = p), false)
+  then (e.permission_overrides ->> p)::boolean
+  else exists (select 1 from role_permissions rp
+               where rp.role = e.role and rp.permission = p)
+end
+from employees e
+where e.auth_user_id = auth.uid() and e.status = 'active'</code></pre>
+
+  <p>Read it out loud: <em>use the override only if the catalogue says this permission is overridable; otherwise fall back to the role template.</em> A planted <code>{"manage_entities": true}</code> is <strong>ignored at read time</strong>, not just rejected at write time.</p>
+  <p>Note <code>e.status = 'active'</code> — a disabled employee resolves to no permissions at all, at the database level.</p>
+
+  <h3>Function grants</h3>
+  <p>Locked down in migration <code>0009</code>:</p>
+  <table class="tight">
+    <thead><tr><th style="width:34%">Access</th><th>Functions</th></tr></thead>
+    <tbody>
+      <tr><td>Callable by <code>authenticated</code></td><td><code>has_perm</code> <code>has_entity_access</code> <code>is_master</code> <code>auth_employee_id</code> <code>next_doc_number</code> <code>fn_path_entity</code></td></tr>
+      <tr><td>Revoked from every client role</td><td><code>fn_post_movement</code> <code>fn_current_employee</code> <code>fn_employees_guard</code> <code>fn_protect_last_master</code> <code>fn_grant_readable_columns</code></td></tr>
+    </tbody>
+  </table>
+  <p><code>fn_post_movement</code> being in that second list is what makes the ledger unforgeable.</p>
+
+  <h2>Layer 4 — Transactional RPCs</h2>
+  <p>Nine functions. All <code>SECURITY DEFINER</code>, all with pinned <code>search_path</code>, all granted to <code>authenticated</code> only, all <strong>commit whole or roll back whole</strong>.</p>
+
+  <table>
+    <thead><tr><th style="width:34%">Function</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>erp_complete_sale(p jsonb)</code></td><td>Locks batches, validates stock / entity / discount, <strong>prices from the DB</strong>, writes sale + items + ledger. Idempotent via <code>request_key</code>.</td></tr>
+      <tr><td><code>erp_reverse_sale(id, reason)</code></td><td>Posts <code>sale_reversal</code> movements; never deletes</td></tr>
+      <tr><td><code>erp_confirm_opening_stock(id)</code></td><td>Batches + <code>opening_stock</code> movements, locks the entry</td></tr>
+      <tr><td><code>erp_confirm_stock_inward(id)</code></td><td>Batches; paid and FOC movements posted separately</td></tr>
+      <tr><td><code>erp_approve_stock_out(id)</code></td><td>Validates batch / product belong to the document's entity, posts the movement</td></tr>
+      <tr><td><code>erp_stock_correction(batch, qty, reason)</code></td><td>Privileged quantity fix; <strong>reason mandatory</strong></td></tr>
+      <tr><td><code>erp_transfer_stock(batch, to, qty)</code></td><td>Both ledger legs atomically</td></tr>
+      <tr><td><code>erp_receive_purchase_order(po, invoice, lines)</code></td><td>GRN + batches + ledger, rolls the PO forward</td></tr>
+      <tr><td><code>erp_commit_product_import(…)</code></td><td>Import record + drafts + audit in one transaction</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Every one validates in the same order</h3>
+<pre>permission → entity access → document status → branch consistency
+→ business rules → row locks → ledger → commit</pre>
+
+  <p><strong>Branch consistency</strong> (migration <code>0013</code>) is the subtle one: it checks that the batch, product and supplier all belong to the <em>document's</em> entity. Without it you could reference your own entity's document while pointing at another entity's batch — passing every individual check while still crossing the boundary.</p>
+  <p><strong>Row locks</strong> — <code>SELECT … FOR UPDATE</code> — mean two cashiers selling the last box at the same instant cannot both succeed. And <code>fn_post_movement</code> refuses to take stock negative, under that lock.</p>
+
+  <h2>The triggers — the layer that ignores the service-role key</h2>
+
+  <h3><code>employees_guard</code> (BEFORE INSERT OR UPDATE)</h3>
+  <ol>
+    <li>Rejects non-overridable keys, unknown keys and non-boolean values in <code>permission_overrides</code> — <strong>on every path, including the service role</strong></li>
+    <li><strong>Nobody may change privilege columns on their own row</strong>, whatever permissions they hold (<code>role</code>, <code>permission_overrides</code>, <code>max_discount_percent</code>, <code>branch_id</code>, <code>approval_limit</code>, <code>status</code>)</li>
+    <li>Non-master privilege writes must satisfy <code>has_entity_access</code> on both the old <em>and</em> the new branch — so you cannot move someone into your entity to gain control of them, or out of it</li>
+    <li>Only a master admin may grant <code>master_admin</code> or change <code>auth_user_id</code></li>
+  </ol>
+
+  <h3><code>employees_protect_last_master</code> (BEFORE UPDATE)</h3>
+  <p>The last active master admin cannot be disabled or demoted. No locking yourself out of your own installation.</p>
+
+  <div class="callout warn">
+    <span class="label">Why &ldquo;service role included&rdquo; matters</span>
+    <p>RLS is <em>bypassed</em> by the service-role key. <strong>Triggers are not.</strong> So these rules hold even for code paths that hold the god key.</p>
+  </div>
+
+  <h2>Storage</h2>
+  <p>Buckets <code>product-images</code> and <code>stock-documents</code>: <strong>private</strong>, 10&nbsp;MB cap, MIME allowlist (PNG / JPEG / WebP / GIF / PDF). Read, write and delete are confined to a <code>&lt;branch_id&gt;/…</code> path prefix the caller can actually access — entity isolation extends to files.</p>
+
+  <h2>What is enforced where</h2>
+  <p>This is the one to put on a slide.</p>
+  <table>
+    <thead><tr><th style="width:52%">Rule</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Entity A cannot read / write Entity B</td><td>RLS on every table</td></tr>
+      <tr><td>Sales user cannot see purchase cost</td><td>Column privileges + gated views</td></tr>
+      <tr><td>Ledger cannot be forged</td><td>INSERT revoked + RPC-only writes</td></tr>
+      <tr><td>Stock cannot go negative</td><td><code>fn_post_movement</code> under row lock</td></tr>
+      <tr><td>Discounts within user <em>and</em> product ceilings</td><td><code>erp_complete_sale</code></td></tr>
+      <tr><td>No self-privilege escalation</td><td><code>employees_guard</code> trigger</td></tr>
+      <tr><td>Master permissions not grantable by override</td><td><code>permission_catalog</code> + trigger + <code>has_perm</code></td></tr>
+      <tr><td>Documents cannot be confirmed twice</td><td><code>SELECT … FOR UPDATE</code> + status check</td></tr>
+      <tr><td>Duplicate sale submission</td><td><code>UNIQUE (branch_id, request_key)</code></td></tr>
+      <tr><td>Duplicate file import</td><td><code>UNIQUE (branch_id, kind, file_hash)</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Migration order — and why it is load-bearing</h2>
+  <p><code>0002</code> installs permissive bootstrap policies that <code>0007</code> replaces with the real per-entity ones. <strong>Applying them out of order leaves the database open.</strong></p>
+  <table class="tight">
+    <thead><tr><th style="width:8%">#</th><th style="width:38%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>0001</td><td><code>schema.sql</code></td><td>Core tables</td></tr>
+      <tr><td>0002</td><td><code>rls.sql</code></td><td>Bootstrap RLS (superseded by 0007)</td></tr>
+      <tr><td>0003</td><td><code>seed.sql</code></td><td>Demo catalogue</td></tr>
+      <tr><td>0004</td><td><code>seed_admin_employee.sql</code></td><td>First admin &harr; employee link</td></tr>
+      <tr><td>0005</td><td><code>ai_embeddings.sql</code></td><td>Vector search</td></tr>
+      <tr><td>0006</td><td><code>erp_foundation.sql</code></td><td>Entities, roles, permissions, product master, stock documents</td></tr>
+      <tr><td>0007</td><td><code>erp_rls.sql</code></td><td>Per-entity + per-permission RLS</td></tr>
+      <tr><td>0008</td><td><code>erp_stock_rpcs.sql</code></td><td>Transactional stock RPCs</td></tr>
+      <tr><td>0009</td><td><code>erp_function_grants.sql</code></td><td>Revoke PUBLIC / anon EXECUTE</td></tr>
+      <tr><td>0010</td><td><code>erp_import_rpc.sql</code></td><td>Atomic import commit</td></tr>
+      <tr><td>0011</td><td><code>permission_override_whitelist.sql</code></td><td><code>permission_catalog</code></td></tr>
+      <tr><td>0012</td><td><code>employee_privilege_guard.sql</code></td><td>Anti-escalation trigger</td></tr>
+      <tr><td>0013</td><td><code>rpc_branch_consistency.sql</code></td><td>Branch consistency in every RPC</td></tr>
+      <tr><td>0014</td><td><code>ledger_write_lockdown.sql</code></td><td>Ledger INSERT revoked</td></tr>
+      <tr><td>0015</td><td><code>cost_column_privileges.sql</code></td><td>Cost views</td></tr>
+      <tr><td>0016</td><td><code>cost_column_privileges_fix.sql</code></td><td>Column privilege lockdown</td></tr>
+      <tr><td>0017</td><td><code>med_hardening.sql</code></td><td>Null-entity, audit attribution, idempotency, storage</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Apply:</strong> <code>supabase db push</code>. &nbsp;<strong>Fresh empty database:</strong> <code>npm run db:bundle</code>, then paste <code>supabase/migrations/run_all.sql</code>.</p>
+
+  <h2>How it is verified</h2>
+<pre>npx tsc --noEmit    exit 0
+npm run lint        exit 0
+npm test            45 unit tests
+npm run test:db     103 tests against real RLS with real signed-in users
+npm run build       exit 0</pre>
+
+  <div class="callout say">
+    <span class="label">The credibility line</span>
+    <p>148 tests, roughly 74 of them adversarial — they sign in with the <strong>anon key</strong> and attack through PostgREST, the same path an attacker with devtools would take. The security claims are not asserted; they are attacked, and they hold.</p>
+  </div>
+
+  <h2>Be ready for the honest question</h2>
+  <p>If someone asks &ldquo;so is it secure?&rdquo;, the answer is: <em>the enforcement model is sound and tested; there are known open items.</em></p>
+  <table>
+    <thead><tr><th style="width:62%">Item</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Credential rotation (service-role, <code>sb_secret</code>, anon, OpenAI, exposed admin password)</td><td><strong>Outstanding — highest risk</strong></td></tr>
+      <tr><td>Dedicated test Supabase project</td><td>Guard shipped; project not created</td></tr>
+      <tr><td>Browser QA (XSS / CSRF / session)</td><td>Not yet performed</td></tr>
+      <tr><td>Dependencies</td><td>3 high, 2 moderate, 0 critical — not upgraded</td></tr>
+    </tbody>
+  </table>
+  <p>Volunteering these is stronger than being caught by them. The first is a genuine action item — those credentials were exposed during development and need rotating before this goes anywhere near production. If the audience includes anyone who could authorise that, raise it.</p>
+</section>
+
+<!-- ============================ STEP 6 ============================ -->
+
+<section class="step">
+  <div class="step-eyebrow">Step 6</div>
+  <h1 class="step-title">Presentation script</h1>
+  <p class="step-lede">A timed running order, the five-move demo, prepared answers to the hard questions, and what to do the night before.</p>
+
+  <h2>The 25-minute structure</h2>
+  <table>
+    <thead><tr><th style="width:12%">Min</th><th style="width:26%">Section</th><th>The one thing they should take away</th></tr></thead>
+    <tbody>
+      <tr><td>0–3</td><td><strong>What it is</strong></td><td>One installation, many independent pharmacies, isolated by the database</td></tr>
+      <tr><td>3–8</td><td><strong>The four ideas</strong></td><td>Batches not products &middot; ledger is truth &middot; draft&rarr;confirm &middot; entity is the boundary</td></tr>
+      <tr><td>8–12</td><td><strong>Who can do what</strong></td><td>4 roles, 21 permissions, and the two commercial separations</td></tr>
+      <tr><td>12–20</td><td><strong>Live demo</strong></td><td>The isolation and cost-hiding are real, not cosmetic</td></tr>
+      <tr><td>20–24</td><td><strong>How it is proven</strong></td><td>148 tests, 74 of them attacking through the anon key</td></tr>
+      <tr><td>24–25</td><td><strong>Open items</strong></td><td>Credential rotation is the outstanding risk</td></tr>
+    </tbody>
+  </table>
+  <p><strong>If cut to 10 minutes:</strong> do the four ideas and the demo. Drop the rest.</p>
+
+  <h2>Your opening line</h2>
+  <div class="callout say">
+    <span class="label">Say this</span>
+    <p>&ldquo;This is one pharmacy ERP installation that runs many independent pharmacies. Each one is called an <em>Entity</em>. No entity can see another's stock, costs, sales or staff — and that is enforced by PostgreSQL, not by our application code.&rdquo;</p>
+  </div>
+  <p>Then immediately: <em>&ldquo;Let me show you why that distinction matters.&rdquo;</em></p>
+
+  <h2>The demo — five moves, in this order</h2>
+  <p>The QA data gives you <strong>Test Pharmacy A</strong> (<code>QA-A</code>, Dar es Salaam) and <strong>Test Pharmacy B</strong> (<code>QA-B</code>, Arusha), with six accounts across all four roles, plus products, suppliers, customers, confirmed opening stock, an inward with free goods, completed sales, approved stock-outs and expenses.</p>
+
+  <div class="callout warn">
+    <span class="label">Before you start</span>
+    <p>Logins are in <code>.qa-credentials.local.txt</code> — gitignored, never committed. <strong>Point the demo at your QA project, not production.</strong></p>
+  </div>
+
+  <div class="move">
+    <h4>Move 1 — Entity isolation (the money shot)</h4>
+    <p>Sign in as <strong>Entity Admin A</strong>. Show the inventory list. Note there is no entity switcher — they have one pharmacy.</p>
+    <p>Sign in as <strong>Entity Admin B</strong>. Completely different products, suppliers, sales.</p>
+    <p>Then say: <em>&ldquo;Same database. Same tables. Same API. The rows simply do not exist for the other user.&rdquo;</em></p>
+  </div>
+
+  <div class="move">
+    <h4>Move 2 — Cost concealment</h4>
+    <p>Sign in as the <strong>sales user</strong>. Open a product. <strong>No purchase cost. No profit figures.</strong></p>
+    <p>Now the line that lands: <em>&ldquo;This is not the UI hiding a column. The </em><code>SELECT</code><em> privilege on </em><code>buy_price</code><em> is revoked for that role — the column is not readable by that connection at all. Even hitting the API directly returns nothing.&rdquo;</em></p>
+    <p>Switch to the <strong>inventory user</strong> — cost is there. Same screen, different truth.</p>
+  </div>
+
+  <div class="move">
+    <h4>Move 3 — Draft &rarr; confirm</h4>
+    <p>Open a stock inward. Show it as a <code>draft</code>, edit a line. Point out: <strong>inventory has not moved.</strong></p>
+    <p>Confirm it. Now show the batches that appeared and the ledger rows behind them.</p>
+    <p><em>&ldquo;One database transaction. Batches, ledger, document lock — all or nothing. There is no code path that does half of it.&rdquo;</em></p>
+  </div>
+
+  <div class="move">
+    <h4>Move 4 — The ledger</h4>
+    <p>Open the stock ledger for one batch. Show the signed movements and the running <code>balance_after</code>.</p>
+    <p><em>&ldquo;Append-only. </em><code>INSERT</code><em> is revoked — even our own application cannot write here. Only one database function can, and it is unreachable from any client. The ledger sums exactly to the batch quantity, and a test asserts that.&rdquo;</em></p>
+    <p>If you show one thing from the free-goods inward: point out the paid units and the FOC units posted as <strong>separate movement types</strong>. Most systems cannot tell you how much of your margin came from free stock. This one can.</p>
+  </div>
+
+  <div class="move">
+    <h4>Move 5 — The master view</h4>
+    <p>Sign in as <strong>master admin</strong>. Show the entity switcher, including &ldquo;all entities&rdquo; consolidated mode.</p>
+    <p><em>&ldquo;This is the only role that sees across pharmacies, and the only role that can create one.&rdquo;</em></p>
+  </div>
+
+  <h2>Questions you should expect, and the answers</h2>
+
+  <div class="qa">
+    <p class="q">What stops a developer, or someone with devtools, bypassing the app?</p>
+    <div class="a"><p>Nothing needs to stop them — the app is not the control. The browser already holds the anon key. Every rule lives in Postgres: 97 RLS policies, revoked column privileges, and nine transactional functions. And 74 of our tests are written from exactly that attacker's position, signing in with the anon key and hitting the REST API directly.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">Could an entity admin promote themselves to master admin?</p>
+    <div class="a"><p>No, in three independent ways. Master-tier permissions are marked non-overridable in <code>permission_catalog</code>. A trigger rejects the write. And <code>has_perm</code> ignores such an override even if it somehow existed. On top of that, nobody can edit privilege columns on their own row, whatever their permissions.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">What if two cashiers sell the last box at the same time?</p>
+    <div class="a"><p>One succeeds, one gets an error. The sale function takes a row lock on the batch, and the ledger writer refuses to go negative under that lock.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">What if a cashier double-clicks Complete Sale?</p>
+    <div class="a"><p>One sale. Each submission carries a request key with a unique constraint on <code>(branch_id, request_key)</code> — the second attempt returns the original sale rather than creating a new one. Enforced by a unique index, so it holds under a race, not just under a check.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">Can someone delete a sale to hide it?</p>
+    <div class="a"><p>No. <code>sale_items</code> has no UPDATE or DELETE policy at all. Cancelling posts reversal movements and stamps who reversed it, when, and why. Nothing is ever removed from the record.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why one <code>returns</code> table for five different things?</p>
+    <div class="a"><p>Because customer returns, supplier returns, damage, expiry and staff consumption are all the same shape: stock moves with a documented reason and a named approver. One table means one approval flow, one audit trail, one screen — and the <code>type</code> column keeps them distinct in the ledger.</p></div>
+  </div>
+
+  <div class="qa">
+    <p class="q">Is it production-ready?</p>
+    <div class="a"><p>The enforcement model is sound and tested. Four things are outstanding: credentials exposed during development need rotating — that is the highest risk and it is a decision I need from you; a dedicated test project needs creating; browser-level QA has not been done; and there are 3 high-severity dependency advisories, no critical.</p></div>
+  </div>
+  <p class="footnote">Answer that last one straight. Volunteering it reads as competence; getting caught by it does not.</p>
+
+  <h2>Numbers to have on hand</h2>
+<pre>36 tables · 2 views · 97 RLS policies · 9 transactional RPCs · 17 migrations
+21 permissions · 4 roles · 53 role-permission rows
+24 screens · 19 server actions · 25 data loaders
+148 tests (45 unit + 103 database), ~74 adversarial
+Next.js 16 · React 19 · PostgreSQL 15</pre>
+
+  <h2>Commands, if you want to run anything live</h2>
+<pre>npm run dev          # http://localhost:3000
+npm test             # 45 unit tests — fast, safe, no DB
+npm run test:db      # 103 RLS/RPC tests against a real project
+npx tsc --noEmit ; npm run lint</pre>
+  <p><code>npm test</code> is the safe one to run in front of people — a few seconds, no database, and green. Save <code>test:db</code> for beforehand; it writes to whatever project <code>.env.local</code> points at.</p>
+
+  <p>Re-seeding the demo data — do this <strong>the night before</strong>, not live:</p>
+<pre>npx tsx scripts/setup-qa-accounts.ts    # entities + 6 accounts
+npx tsx scripts/seed-qa-data.ts         # catalogue, stock, sales, expenses</pre>
+
+  <h2>Pre-flight checklist</h2>
+  <ul class="checklist">
+    <li>Run the two seed scripts; confirm both pharmacies have data.</li>
+    <li>Sign in as <strong>all four</strong> roles once and confirm each looks how you will describe it. This is the step people skip and regret.</li>
+    <li>Run <code>npm test</code> so you know it is green.</li>
+    <li>Have <code>docs/SCHEMA.md</code> open in a tab — your backup for any detail question.</li>
+    <li>Confirm the demo is pointed at the QA project, not production.</li>
+  </ul>
+
+  <div class="closer">
+    <span class="label">If you remember only one paragraph</span>
+    <p>Each pharmacy is an isolated entity. Stock lives on batches with their own cost and expiry, never on products. Every stock change appends to a ledger that the application itself cannot write to, and the ledger provably reconciles to on-hand quantity. Documents do not move stock until they are confirmed, and confirming is one all-or-nothing database transaction. Purchase cost is revoked at the column level for counter staff, and no user can raise their own privileges. All of it is enforced in PostgreSQL, and 74 tests attack it the way an attacker actually would.</p>
+  </div>
+</section>
+
+</body>
+</html>

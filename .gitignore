@@ -38,6 +38,7 @@ yarn-error.log*
 *.local.txt
 *.local.ts
 .qa-credentials*
+.claude/settings.local.json
 
 # vercel
 .vercel
